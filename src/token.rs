@@ -8,9 +8,9 @@ use crate::error::{ParseError, Result};
 pub enum Brace {
     /// Curly braces `{}`
     Curly,
-    /*
     /// Parenthesis `()`
     Paren,
+    /*
     /// Square brackets `[]`
     Square,
     /// AAngle brackets `<>`
@@ -22,9 +22,11 @@ pub enum Brace {
 pub enum Token<'a> {
     Ident(&'a str),
     LitStrChunk { chunk: &'a str, last: bool },
+    LitDigit(&'a str),
     BraceStart(Brace),
     BraceEnd(Brace),
     Colon,
+    Comma,
     Newline,
 }
 
@@ -62,9 +64,25 @@ impl TokenState {
                                 todo!()
                             }
                         }
+                        Some((start, first_end, '1'..='9')) => {
+                            if let Some(pos) = it.as_bytes().find_not_byteset(b"0123456789") {
+                                let end = first_end + pos;
+                                let data = &buf[start..end];
+                                (
+                                    start..end,
+                                    end,
+                                    Token::LitDigit(std::str::from_utf8(data).unwrap()),
+                                )
+                            } else {
+                                todo!()
+                            }
+                        }
                         Some((start, end, '{')) => (start..end, skip_any_whitespace(end, it), Token::BraceStart(Brace::Curly)),
                         Some((start, end, '}')) => (start..end, skip_any_whitespace(end, it), Token::BraceEnd(Brace::Curly)),
+                        Some((start, end, '(')) => (start..end, skip_whitespace(end, it), Token::BraceStart(Brace::Paren)),
+                        Some((start, end, ')')) => (start..end, skip_whitespace(end, it), Token::BraceEnd(Brace::Paren)),
                         Some((start, end, ':')) => (start..end, skip_whitespace(end, it), Token::Colon),
+                        Some((start, end, ',')) => (start..end, skip_whitespace(end, it), Token::Comma),
                         Some((start, end, '\r' | '\n')) => (start..end, skip_any_whitespace(end, it), Token::Newline),
                         Some((_, _, '"')) => {
                             *self = TokenState::LitStr;

@@ -3,9 +3,9 @@ use std::{ops::Range, path::Path, sync::Arc};
 use miette::Diagnostic;
 use thiserror::Error;
 
-use crate::{token::Token, type_trait::LogixTypeDescriptor};
+use crate::token::Token;
 
-pub type Result<T> = std::result::Result<T, ParseError>;
+pub type Result<T, E = ParseError> = std::result::Result<T, E>;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct SourceSpan {
@@ -33,6 +33,12 @@ pub enum ParseError {
         member: &'static str,
     },
 
+    #[error("Duplicate member {type_name} in {member}")]
+    DuplicateMember {
+        type_name: &'static str,
+        member: &'static str,
+    },
+
     #[error("Unexpected end of file while parsing {while_parsing}, expected {wanted:?}")]
     UnexpectedEndOfFile {
         while_parsing: &'static str,
@@ -56,28 +62,29 @@ impl ParseError {
         }
     }
 
-    pub fn missing_member(desc: &'static LogixTypeDescriptor, member: &'static str) -> Self {
-        Self::MissingMember {
-            type_name: desc.name,
-            member,
-        }
+    pub fn missing_member(type_name: &'static str, member: &'static str) -> Self {
+        Self::MissingMember { type_name, member }
+    }
+
+    pub fn duplicate_member(type_name: &'static str, member: &'static str) -> Self {
+        Self::DuplicateMember { type_name, member }
     }
 
     pub fn unexpected_token(
-        desc: &'static LogixTypeDescriptor,
+        while_parsing: &'static str,
         wanted: &'static str,
         got: Option<(SourceSpan, Token)>,
     ) -> Self {
         if let Some((at, got)) = got {
             Self::UnexpectedToken {
                 at,
-                while_parsing: desc.name,
+                while_parsing,
                 wanted,
                 got: format!("{got:?}"),
             }
         } else {
             Self::UnexpectedEndOfFile {
-                while_parsing: desc.name,
+                while_parsing,
                 wanted,
             }
         }

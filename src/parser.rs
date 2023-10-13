@@ -1,8 +1,11 @@
 use crate::{
     error::{ParseError, Result, SourceSpan},
-    token::{Token, TokenState},
+    token::{Brace, Token, TokenState},
+    type_trait::Value,
+    LogixType,
 };
 use bstr::BString;
+use smol_str::SmolStr;
 use std::{io::Read, path::Path, sync::Arc};
 
 pub struct LogixParser<R: Read> {
@@ -31,6 +34,12 @@ impl<R: Read> LogixParser<R> {
     }
 
     pub fn next_token(&mut self) -> Result<Option<(SourceSpan, Token)>> {
+        Ok(self
+            .raw_next_token(true)?
+            .map(|(span, _, token)| (span, token)))
+    }
+
+    fn raw_next_token(&mut self, advance: bool) -> Result<Option<(SourceSpan, usize, Token)>> {
         if !self.eof && self.buf.len() - self.pos < Token::MAX_LEN {
             self.buf.drain(0..self.pos);
             self.file_pos += self.pos;
@@ -54,10 +63,42 @@ impl<R: Read> LogixParser<R> {
                 path: self.path.clone(),
                 range: range.start + file_offset..range.end + file_offset,
             };
-            self.pos += size;
-            Ok(Some((span, token)))
+            if advance {
+                self.pos += size;
+            }
+            Ok(Some((span, size, token)))
         } else {
             todo!()
+        }
+    }
+
+    pub fn read_key_value<T: LogixType>(
+        &mut self,
+        end_brace: Brace,
+    ) -> Result<Option<(Value<SmolStr>, Value<T>)>> {
+        match self.next_token()? {
+            Some((span, Token::Ident(key))) => {
+                let key = Value {
+                    value: SmolStr::new(key),
+                    span,
+                };
+
+                match self.next_token()? {
+                    Some((_, Token::Colon)) => {}
+                    unk => todo!("{unk:#?}"),
+                }
+
+                let value = T::logix_parse(self)?;
+
+                match self.next_token()? {
+                    Some((_, Token::Newline)) => {}
+                    unk => todo!("{unk:#?}"),
+                }
+
+                Ok(Some((key, value)))
+            }
+            Some((_, Token::BraceEnd(brace))) if brace == end_brace => Ok(None),
+            unk => todo!("{unk:#?}"),
         }
     }
 }
