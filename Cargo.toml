@@ -1,7 +1,7 @@
 [package]
-name = "logix-mold"
+name = "logix-type"
 version = "0.1.0"
-description = "Parser for .logix files, aimed at enabling easy-to-read-and-write configurations for the Logix tool."
+description = "Provides the `LogixType` trait and the parser for `.logix` files, aimed at enabling easy-to-read-and-write configurations for `logix`."
 repository = "https://github.com/logix-tool/logix-loom"
 edition = "2021"
 authors = [
@@ -14,14 +14,16 @@ categories = ["parsing", "config", "parser-implementations"]
 
 [dependencies]
 bstr = "1.7.0"
-logix-mold-derive = { path = "derive" }
-logix-vfs = "0.2.0"
+indexmap = "2.0.2"
+logix-type-derive = { path = "derive" }
+logix-vfs = "0.3.0"
 miette = "5.10.0"
 smol_str = "0.2.0"
 thiserror = "1.0.49"
 
 [dev-dependencies]
 tempfile = "3.8.0"
+miette = { version = "5.10.0", features = ["fancy"] }
 
 [workspace]
 members = [

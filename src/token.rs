@@ -2,8 +2,6 @@ use std::ops::Range;
 
 use bstr::ByteSlice;
 
-use crate::error::{ParseError, Result};
-
 #[derive(Debug, PartialEq, Eq)]
 pub enum Brace {
     /// Curly braces `{}`
@@ -35,6 +33,12 @@ impl<'a> Token<'a> {
     pub const MAX_LEN: usize = 1024;
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum TokenError {
+    #[error("String literal is not valid utf-8")]
+    LitStrNotUtf8,
+}
+
 pub(crate) enum TokenState {
     Normal,
     LitStr,
@@ -44,7 +48,7 @@ impl TokenState {
     pub fn parse_token<'a>(
         &mut self,
         buf: &'a [u8],
-    ) -> Result<Option<(Range<usize>, usize, Token<'a>)>> {
+    ) -> std::result::Result<Option<(Range<usize>, usize, Token<'a>)>, TokenError> {
         let mut it = buf.char_indices();
 
         loop {
@@ -64,8 +68,21 @@ impl TokenState {
                                 todo!()
                             }
                         }
-                        Some((start, first_end, '1'..='9')) => {
+                        Some((start, first_end, '0'..='9')) => {
                             if let Some(pos) = it.as_bytes().find_not_byteset(b"0123456789") {
+                                let end = first_end + pos;
+                                let data = &buf[start..end];
+                                (
+                                    start..end,
+                                    end,
+                                    Token::LitDigit(std::str::from_utf8(data).unwrap()),
+                                )
+                            } else {
+                                todo!()
+                            }
+                        }
+                        Some((start, first_end, '-')) => {
+                            if let Some(pos @ 1..) = it.as_bytes().find_not_byteset(b"0123456789") {
                                 let end = first_end + pos;
                                 let data = &buf[start..end];
                                 (
@@ -107,7 +124,7 @@ impl TokenState {
                                     end + 1,
                                     Token::LitStrChunk {
                                         chunk: std::str::from_utf8(data)
-                                            .map_err(|_| ParseError::LitStrNotUtf8)?,
+                                            .map_err(|_| TokenError::LitStrNotUtf8)?,
                                         last: true,
                                     },
                                 )));

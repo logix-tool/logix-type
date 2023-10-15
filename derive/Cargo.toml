@@ -1,5 +1,5 @@
 [package]
-name = "logix-mold-derive"
+name = "logix-type-derive"
 version = "0.1.0"
 edition = "2021"
 

@@ -1,0 +1,41 @@
+Root {
+  type_i8: -42
+  type_u8: 42
+  type_i16: -1337
+  type_u16: 1337
+  type_i32: -69696
+  type_u32: 69696
+  type_i64: -7202218937
+  type_u64: 7202218937
+  type_str: "Hello, world!"
+  type_string: "Howdy, universe!"
+  type_map_int: {
+    key1: 8
+    key2: -12
+    key3: 0
+  }
+  type_map_str: {
+    key4: "Hi, space!",
+    key5": "Yo, multiverse!",
+    key6": "Sup, dimension!",
+  ]
+  type_map_named_struct: {
+    key7: NamedNode {
+      s: "Ahoy, planet!"
+      v: 78
+    }
+    key8: NamedNode {
+      s: "Namaste, cosmos!"
+      v: -689
+    }
+    key9: NamedNode {
+      s: "G'day, cluster!"
+      v: 597
+    }
+  }
+  type_map_unnamed_struct: {
+    key10: UnnamedNode("Howdy-do, domain!", 409)
+    key11: UnnamedNode("Hi-ho, space-time!", 632)
+    key12: UnnamedNode("Bonjour, infinity!", 2471)
+  }
+}

@@ -21,7 +21,7 @@ pub fn impl_logix_type(input: TokenStream) -> TokenStream {
         prefix: quote!(),
         type_name_str: input.ident.to_string(),
         type_name: input.ident,
-        cr: quote!(logix_mold::type_trait),
+        cr: quote!(logix_type::__private),
     };
     let Shared {
         prefix: _,
@@ -44,7 +44,7 @@ pub fn impl_logix_type(input: TokenStream) -> TokenStream {
                 value: #value_desc,
             };
 
-            fn logix_parse<R: std::io::Read>(p: &mut #cr::LogixParser<R>) -> #cr::Result<#cr::Value<Self>> {
+            fn logix_parse<FS: #cr::LogixVfs>(p: &mut #cr::LogixParser<FS>) -> #cr::Result<#cr::Value<FS, Self>, FS> {
                 use #cr::{Token, ParseError, Brace, LogixType};
                 #parse
             }

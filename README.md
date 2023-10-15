@@ -1,6 +1,6 @@
-# Logix-Mold - Structuring Your Logix Units
+# logix-type - provider of the LogixType trait and derive macro
 
-Welcome to `logix-mold`, the dedicated parser for `.logix` files, used by the `logix` crate. It aims to be a user readable format that is easy to both read and write. This makes `logix-mold` an essential part of the Logix ecosystem.
+Welcome to `logix-type`, the dedicated parser for `.logix` files, used by the `logix` crate. It aims to be a user readable format that is easy to both read and write. This makes `logix-type` an essential part of the Logix ecosystem.
 
 ## Goals
 
