@@ -1,32 +1,60 @@
+use crate::loader::CachedFile;
+use bstr::ByteSlice;
 use core::fmt;
 use owo_colors::OwoColorize;
-use std::{
-    collections::HashMap,
-    io::{BufRead, BufReader},
-    ops::Range,
-    path::PathBuf,
-};
+use std::{borrow::Cow, ops::Range};
 
 use logix_vfs::LogixVfs;
 use thiserror::Error;
 
-use crate::{loader::FileId, token::Token, LogixLoader, Str};
+use crate::{token::Token, Str};
 
 pub type Result<T> = std::result::Result<T, ParseError>;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SourceSpan {
-    file: FileId,
-    range: Range<usize>,
+    file: CachedFile,
+    line: usize,
+    col: Range<u16>,
 }
 
 impl SourceSpan {
-    pub(crate) fn new(file: FileId, range: Range<usize>) -> Self {
-        Self { file, range }
+    pub(crate) fn new(file: &CachedFile, line: usize, col: usize, len: usize) -> Self {
+        let scol = u16::try_from(col).unwrap();
+        let ecol = u16::try_from(col + len).unwrap();
+        Self {
+            file: file.clone(),
+            line,
+            col: scol..ecol,
+        }
+    }
+
+    fn lines(
+        &self,
+        context: usize,
+    ) -> impl Iterator<Item = (usize, Option<Range<usize>>, Cow<str>)> {
+        self.file
+            .lines()
+            .enumerate()
+            .skip(self.line.saturating_sub(context + 1))
+            .map_while(move |(i, line)| {
+                let ln = i + 1;
+                if ln == self.line {
+                    Some((
+                        ln,
+                        Some(usize::from(self.col.start)..usize::from(self.col.end)),
+                        line.to_str_lossy(),
+                    ))
+                } else if ln <= self.line + context {
+                    Some((ln, None, line.to_str_lossy()))
+                } else {
+                    None
+                }
+            })
     }
 }
 
-#[derive(Error, Debug)]
+#[derive(Error)]
 pub enum ParseError {
     #[error(transparent)]
     FsError(#[from] logix_vfs::Error),
@@ -86,13 +114,69 @@ impl ParseError {
                 span,
                 while_parsing,
                 wanted,
-                got: format!("{got:?}"),
+                got: got.to_string(),
             }
         } else {
             Self::UnexpectedEndOfFile {
                 while_parsing,
                 wanted,
             }
+        }
+    }
+}
+
+impl fmt::Debug for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f)?;
+        match self {
+            Self::UnexpectedToken {
+                span,
+                while_parsing,
+                wanted,
+                got,
+            } => {
+                let ln_width = calc_ln_width(span.line + 1);
+                writeln!(
+                    f,
+                    "{}{}",
+                    "error: ".bright_red().bold(),
+                    format_args!("Unexpected token {got} while parsing {while_parsing}").bold()
+                )?;
+
+                writeln!(
+                    f,
+                    "   {} {}:{}:{}",
+                    "--->".bright_blue().bold(),
+                    span.file.path().display(),
+                    span.line,
+                    span.col.start,
+                )?;
+                writeln!(f, "{:>ln_width$} {}", "", "|".bright_blue().bold(),)?;
+
+                for (ln, span, line) in span.lines(1) {
+                    writeln!(
+                        f,
+                        "{:>ln_width$} {} {}",
+                        ln.bright_blue().bold(),
+                        "|".bright_blue().bold(),
+                        line.trim_end(),
+                    )?;
+                    if let Some(span) = span {
+                        let col = span.start;
+                        writeln!(
+                            f,
+                            "{:>ln_width$} {} {:>col$}{} {}",
+                            "",
+                            "|".bright_blue().bold(),
+                            "",
+                            "^".repeat(span.len()).bright_red().bold(),
+                            format_args!("Expected {wanted}").bright_red().bold(),
+                        )?;
+                    }
+                }
+                Ok(())
+            }
+            _ => writeln!(f, "TODO(2023.10): {self}"),
         }
     }
 }
@@ -110,166 +194,13 @@ impl<'fs, FS: LogixVfs> fmt::Debug for LoaderError<'fs, FS> {
     }
 }
 
-enum Prefix {
-    Error,
-}
-
-struct Issue {
-    line: usize,
-    col: usize,
-    len: usize,
-    message: String,
-}
-
-struct IssueGroup {
-    prefix: Prefix,
-    file: FileId,
-    issues: Vec<Issue>,
-    message: String,
-}
-
-struct FileCache {
-    path: PathBuf,
-    lines: Vec<(usize, Vec<u8>)>,
-}
-
-#[derive(Default)]
-pub struct HumanReport {
-    lines: HashMap<FileId, FileCache>,
-    issues: Vec<IssueGroup>,
-}
-
-impl HumanReport {
-    fn resolve_span<FS: LogixVfs>(
-        &mut self,
-        loader: &LogixLoader<FS>,
-        span: &SourceSpan,
-    ) -> (FileId, usize, usize) {
-        let entry = self.lines.entry(span.file).or_insert_with(|| {
-            let (path, file) = loader.open_file_by_id(span.file).unwrap();
-            let mut i = 0;
-            let lines = BufReader::new(file)
-                .split(b'\n')
-                .map(|b| {
-                    let ret = (i, b.unwrap());
-                    i += ret.1.len() + 1;
-                    ret
-                })
-                .collect();
-            FileCache { path, lines }
-        });
-        match entry.lines.binary_search_by_key(&span.range.start, |v| v.0) {
-            Ok(i) => (span.file, i, 0),
-            Err(0) => (span.file, 0, span.range.start),
-            Err(i) => (span.file, i - 1, span.range.start - entry.lines[i - 1].0),
-        }
-    }
-
-    fn push_issue(&mut self, file: FileId, prefix: Prefix, message: String) -> &mut IssueGroup {
-        self.issues.push(IssueGroup {
-            prefix,
-            file,
-            issues: Vec::new(),
-            message,
-        });
-        self.issues.last_mut().unwrap()
-    }
-
-    pub fn from_parse_error<FS: LogixVfs>(loader: &LogixLoader<FS>, e: ParseError) -> Self {
-        let mut report = Self::default();
-        match dbg!(&e) {
-            ParseError::UnexpectedToken {
-                span,
-                while_parsing,
-                wanted,
-                got,
-            } => {
-                let (file, line, col) = report.resolve_span(loader, span);
-                let group =
-                    report.push_issue(file, Prefix::Error, "Unexpected token while parsing".into());
-                group.issues.push(Issue {
-                    line,
-                    col,
-                    len: span.range.len(),
-                    message: format_args!("expected {wanted:?}")
-                        .bright_red()
-                        .bold()
-                        .to_string(),
-                });
-            }
-            unk => todo!("{unk:#?}"),
-        }
-        report
-    }
-}
-
-impl fmt::Debug for HumanReport {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fn calc_ln_width(i: usize) -> usize {
-            match i + 1 {
-                0..=999 => 3,
-                1000..=9999 => 4,
-                10000..=99999 => 5,
-                100000..=999999 => 6,
-                _ => 10,
-            }
-        }
-
-        for group in &self.issues {
-            let file = &self.lines[&group.file];
-            match group.prefix {
-                Prefix::Error => writeln!(
-                    f,
-                    "{}{}",
-                    "error: ".bright_red().bold(),
-                    group.message.bold()
-                )?,
-            }
-            writeln!(
-                f,
-                "   {} {}",
-                "--->".bright_blue().bold(),
-                file.path.display()
-            )?;
-
-            for issue in &group.issues {
-                let context = 5;
-                let max_line = issue.line + context;
-                for (i, (_, line)) in file
-                    .lines
-                    .iter()
-                    .enumerate()
-                    .skip(issue.line.saturating_sub(context))
-                {
-                    if i == max_line {
-                        break;
-                    }
-
-                    let line = String::from_utf8_lossy(line);
-                    let ln_width = calc_ln_width(issue.line);
-                    writeln!(
-                        f,
-                        "{:>ln_width$} {} {}",
-                        (i + 1).bright_blue().bold(),
-                        "|".bright_blue().bold(),
-                        line.trim_end(),
-                    )?;
-                    if i == issue.line {
-                        writeln!(
-                            f,
-                            "{estr:ln_width$} {pipe:} {estr:col$}{point:} {message:}",
-                            estr = "",
-                            pipe = "|".bright_blue().bold(),
-                            point = "^".repeat(issue.len).bright_red().bold(),
-                            message = issue.message,
-                            col = issue.col
-                        )?;
-                    }
-                }
-            }
-        }
-
-        Ok(())
+fn calc_ln_width(i: usize) -> usize {
+    match i + 1 {
+        0..=999 => 3,
+        1000..=9999 => 4,
+        10000..=99999 => 5,
+        100000..=999999 => 6,
+        _ => 10,
     }
 }
 

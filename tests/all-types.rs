@@ -1,7 +1,4 @@
-use logix_type::{
-    error::{HumanReport, ParseError},
-    LogixLoader, Map, Str,
-};
+use logix_type::{error::Result, LogixLoader, Map, Str};
 use logix_vfs::RelFs;
 
 #[derive(logix_type::LogixType, PartialEq, Debug)]
@@ -102,12 +99,10 @@ fn expected_root() -> Root {
 }
 
 #[test]
-fn load() -> Result<(), HumanReport> {
+fn load() -> Result<()> {
     let expected = expected_root();
     let mut loader = LogixLoader::new(RelFs::new("tests/include"));
-    let got: Root = loader
-        .load_file("all-types.logix")
-        .map_err(|e| HumanReport::from_parse_error(&loader, e))?;
+    let got: Root = loader.load_file("all-types.logix")?;
     assert_eq!(expected, got);
     Ok(())
 }

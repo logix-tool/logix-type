@@ -1,37 +1,33 @@
 use crate::{
     error::{ParseError, Result, SourceSpan, Warn},
-    loader::{CachedFile, FileId, LogixLoader},
+    loader::{CachedFile, LogixLoader},
     token::{Brace, Token, TokenState},
     type_trait::Value,
     LogixType,
 };
-use bstr::BString;
 use logix_vfs::LogixVfs;
 use smol_str::SmolStr;
-use std::io::Read;
 
-pub struct LogixParser<'fs, FS: LogixVfs> {
+pub struct LogixParser<'fs, 'f, FS: LogixVfs> {
     _loader: &'fs mut LogixLoader<FS>,
-    file: CachedFile,
-    buf: BString,
-    file_pos: usize,
-    pos: usize,
+    file: &'f CachedFile,
+    lines: bstr::Lines<'f>,
+    cur_line: &'f [u8],
+    cur_col: usize,
+    cur_ln: usize,
     state: TokenState,
-    eof: bool,
 }
 
-impl<'fs, FS: LogixVfs> LogixParser<'fs, FS> {
-    const READ_SIZE: usize = Token::MAX_LEN * 16;
-
-    pub(crate) fn new(loader: &'fs mut LogixLoader<FS>, file: CachedFile) -> Self {
+impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
+    pub(crate) fn new(loader: &'fs mut LogixLoader<FS>, file: &'f CachedFile) -> Self {
         Self {
             _loader: loader,
             file,
-            buf: BString::new(Vec::new()),
-            file_pos: 0,
-            pos: 0,
+            lines: file.lines(),
+            cur_line: b"",
+            cur_col: 0,
+            cur_ln: 0,
             state: TokenState::Normal,
-            eof: false,
         }
     }
 
@@ -47,34 +43,26 @@ impl<'fs, FS: LogixVfs> LogixParser<'fs, FS> {
     }
 
     fn raw_next_token(&mut self, advance: bool) -> Result<Option<(SourceSpan, usize, Token)>> {
-        if !self.eof && self.buf.len() - self.pos < Token::MAX_LEN {
-            self.buf.drain(0..self.pos);
-            self.file_pos += self.pos;
-            self.pos = 0;
-
-            let to_read = Self::READ_SIZE - self.buf.len();
-            let actual = self
-                .r
-                .by_ref()
-                .take(to_read.try_into().unwrap())
-                .read_to_end(&mut self.buf)
-                .map_err(ParseError::read_error)?;
-            self.eof = actual < to_read;
+        while self.cur_col == self.cur_line.len() {
+            if let Some(line) = self.lines.next() {
+                self.cur_line = line;
+                self.cur_col = 0;
+                self.cur_ln += 1;
+            } else {
+                return Ok(None);
+            }
         }
 
-        if self.buf.len() == self.pos {
-            return Ok(None);
-        }
-
-        match self.state.parse_token(&self.buf[self.pos..]) {
+        match self.state.parse_token(&self.cur_line[self.cur_col..]) {
             Ok(Some((range, size, token))) => {
-                let file_offset = self.file_pos + self.pos;
                 let span = SourceSpan::new(
-                    self.file_id,
-                    range.start + file_offset..range.end + file_offset,
+                    &self.file,
+                    self.cur_ln,
+                    self.cur_col + range.start,
+                    range.len(),
                 );
                 if advance {
-                    self.pos += size;
+                    self.cur_col += size;
                 }
                 Ok(Some((span, size, token)))
             }
@@ -121,8 +109,8 @@ mod tests {
 
     use super::*;
 
-    fn s(file_id: FileId, start: usize, len: usize) -> SourceSpan {
-        SourceSpan::new(file_id, start..start + len)
+    fn s(file: &CachedFile, ln: usize, start: usize, len: usize) -> SourceSpan {
+        SourceSpan::new(&file, ln, start, len)
     }
 
     #[test]
@@ -131,20 +119,27 @@ mod tests {
         std::fs::write(root.path().join("test.logix"), b"Hello { world: \"!!!\" }").unwrap();
 
         let mut loader = LogixLoader::new(RelFs::new(root.path()));
-        let (id, r) = loader.open_file("test.logix")?;
-        let mut p = LogixParser::new(&mut loader, id, r);
+        let f = loader.open_file("test.logix")?;
+        let f = &f;
+        let mut p = LogixParser::new(&mut loader, f);
 
-        assert_eq!(p.next_token()?, Some((s(id, 0, 5), Token::Ident("Hello"))));
         assert_eq!(
             p.next_token()?,
-            Some((s(id, 6, 1), Token::BraceStart(Brace::Curly)))
+            Some((s(f, 1, 0, 5), Token::Ident("Hello")))
         );
-        assert_eq!(p.next_token()?, Some((s(id, 8, 5), Token::Ident("world"))));
-        assert_eq!(p.next_token()?, Some((s(id, 13, 1), Token::Colon)));
+        assert_eq!(
+            p.next_token()?,
+            Some((s(f, 1, 6, 1), Token::BraceStart(Brace::Curly)))
+        );
+        assert_eq!(
+            p.next_token()?,
+            Some((s(f, 1, 8, 5), Token::Ident("world")))
+        );
+        assert_eq!(p.next_token()?, Some((s(f, 1, 13, 1), Token::Colon)));
         assert_eq!(
             p.next_token()?,
             Some((
-                s(id, 16, 3),
+                s(f, 1, 16, 3),
                 Token::LitStrChunk {
                     chunk: "!!!",
                     last: true
@@ -153,7 +148,7 @@ mod tests {
         );
         assert_eq!(
             p.next_token()?,
-            Some((s(id, 21, 1), Token::BraceEnd(Brace::Curly)))
+            Some((s(f, 1, 21, 1), Token::BraceEnd(Brace::Curly)))
         );
         assert_eq!(p.next_token()?, None);
         Ok(())

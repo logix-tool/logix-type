@@ -1,4 +1,4 @@
-use std::ops::Range;
+use std::{fmt, ops::Range};
 
 use bstr::ByteSlice;
 
@@ -28,9 +28,13 @@ pub enum Token<'a> {
     Newline,
 }
 
-impl<'a> Token<'a> {
-    /// A single token can't be bigger than this
-    pub const MAX_LEN: usize = 1024;
+impl<'a> fmt::Display for Token<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Ident(value) => write!(f, "`{value}`"),
+            unk => todo!("{unk:?}"),
+        }
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -82,16 +86,17 @@ impl TokenState {
                             }
                         }
                         Some((start, first_end, '-')) => {
-                            if let Some(pos @ 1..) = it.as_bytes().find_not_byteset(b"0123456789") {
-                                let end = first_end + pos;
-                                let data = &buf[start..end];
-                                (
-                                    start..end,
-                                    end,
-                                    Token::LitDigit(std::str::from_utf8(data).unwrap()),
-                                )
-                            } else {
-                                todo!()
+                            match it.as_bytes().find_not_byteset(b"0123456789").unwrap_or(it.as_bytes().len()) {
+                                0 => todo!(),
+                                pos => {
+                                    let end = first_end + pos;
+                                    let data = &buf[start..end];
+                                    (
+                                        start..end,
+                                        end,
+                                        Token::LitDigit(std::str::from_utf8(data).unwrap()),
+                                    )
+                                }
                             }
                         }
                         Some((start, end, '{')) => (start..end, skip_any_whitespace(end, it), Token::BraceStart(Brace::Curly)),
@@ -100,14 +105,13 @@ impl TokenState {
                         Some((start, end, ')')) => (start..end, skip_whitespace(end, it), Token::BraceEnd(Brace::Paren)),
                         Some((start, end, ':')) => (start..end, skip_whitespace(end, it), Token::Colon),
                         Some((start, end, ',')) => (start..end, skip_whitespace(end, it), Token::Comma),
-                        Some((start, end, '\r' | '\n')) => (start..end, skip_any_whitespace(end, it), Token::Newline),
                         Some((_, _, '"')) => {
                             *self = TokenState::LitStr;
                             continue;
                         }
                         Some((_, _, ' ')) => continue,
                         Some(unk) => todo!("{unk:?}"),
-                        None => return Ok(None),
+                        None => todo!(),
                     }));
                 }
                 Self::LitStr => {
