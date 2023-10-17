@@ -1,13 +1,10 @@
 pub mod error;
+mod loader;
 mod parser;
 mod token;
 mod type_trait;
 
-use std::{path::Path, sync::Arc};
-
-use error::Result;
-use logix_vfs::LogixVfs;
-
+pub use crate::loader::LogixLoader;
 pub use logix_type_derive::LogixType;
 pub use type_trait::LogixType;
 
@@ -19,16 +16,3 @@ pub mod __private {
 
 pub type Map<V> = indexmap::IndexMap<Str, V>;
 pub type Str = smol_str::SmolStr;
-
-pub fn load_file<T: LogixType, FS: LogixVfs>(fs: Arc<FS>, path: impl AsRef<Path>) -> Result<T, FS> {
-    let path = Arc::<Path>::from(path.as_ref());
-    let file = fs.open_file(&path)?;
-    let mut p = parser::LogixParser::new(path, fs.clone(), file);
-
-    let ret = T::logix_parse(&mut p)?;
-
-    match p.next_token()? {
-        Some(unk) => todo!("{unk:?}"),
-        None => Ok(ret.value),
-    }
-}

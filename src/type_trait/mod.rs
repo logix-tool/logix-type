@@ -8,9 +8,9 @@ pub use crate::{
 };
 pub use logix_vfs::LogixVfs;
 
-pub struct Value<FS: LogixVfs, T> {
+pub struct Value<T> {
     pub value: T,
-    pub span: SourceSpan<FS>,
+    pub span: SourceSpan,
 }
 
 pub enum LogixValueDescriptor {
@@ -35,5 +35,5 @@ pub struct LogixTypeDescriptor {
 pub trait LogixType: Sized {
     const DESCRIPTOR: &'static LogixTypeDescriptor;
 
-    fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<FS, Self>, FS>;
+    fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<Self>>;
 }

@@ -1,7 +1,8 @@
-use std::sync::Arc;
-
-use logix_type::{error::Result, Map, Str};
-use logix_vfs::{LogixVfs, RelFs};
+use logix_type::{
+    error::{HumanReport, ParseError},
+    LogixLoader, Map, Str,
+};
+use logix_vfs::RelFs;
 
 #[derive(logix_type::LogixType, PartialEq, Debug)]
 struct Root {
@@ -101,20 +102,12 @@ fn expected_root() -> Root {
 }
 
 #[test]
-fn load() -> Result<(), impl LogixVfs> {
-    miette::set_hook(Box::new(|_| {
-        Box::new(
-            miette::MietteHandlerOpts::new()
-                .terminal_links(true)
-                .unicode(false)
-                .context_lines(3)
-                .tab_width(4)
-                .build(),
-        )
-    }));
-    let fs = Arc::new(RelFs::new("tests/include"));
+fn load() -> Result<(), HumanReport> {
     let expected = expected_root();
-    let got: Root = logix_type::load_file(fs.clone(), "all-types.logix")?;
+    let mut loader = LogixLoader::new(RelFs::new("tests/include"));
+    let got: Root = loader
+        .load_file("all-types.logix")
+        .map_err(|e| HumanReport::from_parse_error(&loader, e))?;
     assert_eq!(expected, got);
     Ok(())
 }

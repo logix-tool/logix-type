@@ -12,7 +12,7 @@ macro_rules! impl_for_str {
                 value: LogixValueDescriptor::Native,
             };
 
-            fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<FS, Self>, FS> {
+            fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<Self>> {
                 Ok(match p.next_token()? {
                     Some((span, Token::LitStrChunk { chunk, last: true })) => Value {
                         value: <$type>::from(chunk),
@@ -36,7 +36,7 @@ macro_rules! impl_for_int {
                 value: LogixValueDescriptor::Native,
             };
 
-            fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<FS, Self>, FS> {
+            fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<Self>> {
                 Ok(match p.next_token()? {
                     Some((span, Token::LitDigit(num))) => Value {
                         value: num.parse().unwrap(), // TODO(2023.10): Return a sensible error
@@ -59,7 +59,7 @@ impl<T: LogixType> LogixType for Map<T> {
         value: LogixValueDescriptor::Native,
     };
 
-    fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<FS, Self>, FS> {
+    fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<Self>> {
         match p.next_token()? {
             Some((start, Token::BraceStart(Brace::Curly))) => {
                 let mut map = Map::new();

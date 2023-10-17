@@ -1,5 +1,6 @@
 use crate::{
     error::{ParseError, Result, SourceSpan, Warn},
+    loader::{FileId, LogixLoader},
     token::{Brace, Token, TokenState},
     type_trait::Value,
     LogixType,
@@ -7,11 +8,11 @@ use crate::{
 use bstr::BString;
 use logix_vfs::LogixVfs;
 use smol_str::SmolStr;
-use std::{io::Read, path::Path, sync::Arc};
+use std::io::Read;
 
-pub struct LogixParser<FS: LogixVfs> {
-    path: Arc<Path>,
-    fs: Arc<FS>,
+pub struct LogixParser<'fs, FS: LogixVfs> {
+    _loader: &'fs mut LogixLoader<FS>,
+    file_id: FileId,
     r: FS::RoFile,
     buf: BString,
     file_pos: usize,
@@ -20,13 +21,13 @@ pub struct LogixParser<FS: LogixVfs> {
     eof: bool,
 }
 
-impl<FS: LogixVfs> LogixParser<FS> {
+impl<'fs, FS: LogixVfs> LogixParser<'fs, FS> {
     const READ_SIZE: usize = Token::MAX_LEN * 16;
 
-    pub(crate) fn new(path: Arc<Path>, fs: Arc<FS>, r: FS::RoFile) -> Self {
+    pub(crate) fn new(loader: &'fs mut LogixLoader<FS>, file_id: FileId, r: FS::RoFile) -> Self {
         Self {
-            path,
-            fs,
+            _loader: loader,
+            file_id,
             r,
             buf: BString::new(Vec::new()),
             file_pos: 0,
@@ -36,21 +37,18 @@ impl<FS: LogixVfs> LogixParser<FS> {
         }
     }
 
-    pub fn next_token(&mut self) -> Result<Option<(SourceSpan<FS>, Token)>, FS> {
+    pub fn next_token(&mut self) -> Result<Option<(SourceSpan, Token)>> {
         Ok(self
             .raw_next_token(true)?
             .map(|(span, _, token)| (span, token)))
     }
 
-    pub fn warning(&self, warning: Warn<FS>) -> Result<(), FS> {
+    pub fn warning(&self, warning: Warn) -> Result<()> {
         // TODO(2023.10): Make it possible to allow warnings
         Err(ParseError::Warning(warning))
     }
 
-    fn raw_next_token(
-        &mut self,
-        advance: bool,
-    ) -> Result<Option<(SourceSpan<FS>, usize, Token)>, FS> {
+    fn raw_next_token(&mut self, advance: bool) -> Result<Option<(SourceSpan, usize, Token)>> {
         if !self.eof && self.buf.len() - self.pos < Token::MAX_LEN {
             self.buf.drain(0..self.pos);
             self.file_pos += self.pos;
@@ -73,11 +71,10 @@ impl<FS: LogixVfs> LogixParser<FS> {
         match self.state.parse_token(&self.buf[self.pos..]) {
             Ok(Some((range, size, token))) => {
                 let file_offset = self.file_pos + self.pos;
-                let span = SourceSpan {
-                    fs: self.fs.clone(),
-                    path: self.path.clone(),
-                    range: range.start + file_offset..range.end + file_offset,
-                };
+                let span = SourceSpan::new(
+                    self.file_id,
+                    range.start + file_offset..range.end + file_offset,
+                );
                 if advance {
                     self.pos += size;
                 }
@@ -90,7 +87,7 @@ impl<FS: LogixVfs> LogixParser<FS> {
     pub fn read_key_value<T: LogixType>(
         &mut self,
         end_brace: Brace,
-    ) -> Result<Option<(Value<FS, SmolStr>, Value<FS, T>)>, FS> {
+    ) -> Result<Option<(Value<SmolStr>, Value<T>)>> {
         match self.next_token()? {
             Some((span, Token::Ident(key))) => {
                 let key = Value {
@@ -126,34 +123,30 @@ mod tests {
 
     use super::*;
 
-    fn s<FS: LogixVfs>(fs: &Arc<FS>, start: usize, len: usize) -> SourceSpan<FS> {
-        SourceSpan {
-            fs: fs.clone(),
-            path: Arc::from(Path::new("test.logix")),
-            range: start..start + len,
-        }
+    fn s(file_id: FileId, start: usize, len: usize) -> SourceSpan {
+        SourceSpan::new(file_id, start..start + len)
     }
 
     #[test]
-    fn basics() -> Result<(), impl LogixVfs> {
+    fn basics() -> Result<()> {
         let root = tempfile::tempdir().unwrap();
-        let path = Arc::<Path>::from(Path::new("test.logix"));
-        let fs = Arc::new(RelFs::new(root.path()));
-        std::fs::write(root.path().join(&path), b"Hello { world: \"!!!\" }").unwrap();
-        let file = fs.open_file(&path)?;
-        let mut p = LogixParser::new(path, fs.clone(), file);
+        std::fs::write(root.path().join("test.logix"), b"Hello { world: \"!!!\" }").unwrap();
 
-        assert_eq!(p.next_token()?, Some((s(&fs, 0, 5), Token::Ident("Hello"))));
+        let mut loader = LogixLoader::new(RelFs::new(root.path()));
+        let (id, r) = loader.open_file("test.logix")?;
+        let mut p = LogixParser::new(&mut loader, id, r);
+
+        assert_eq!(p.next_token()?, Some((s(id, 0, 5), Token::Ident("Hello"))));
         assert_eq!(
             p.next_token()?,
-            Some((s(&fs, 6, 1), Token::BraceStart(Brace::Curly)))
+            Some((s(id, 6, 1), Token::BraceStart(Brace::Curly)))
         );
-        assert_eq!(p.next_token()?, Some((s(&fs, 8, 5), Token::Ident("world"))));
-        assert_eq!(p.next_token()?, Some((s(&fs, 13, 1), Token::Colon)));
+        assert_eq!(p.next_token()?, Some((s(id, 8, 5), Token::Ident("world"))));
+        assert_eq!(p.next_token()?, Some((s(id, 13, 1), Token::Colon)));
         assert_eq!(
             p.next_token()?,
             Some((
-                s(&fs, 16, 3),
+                s(id, 16, 3),
                 Token::LitStrChunk {
                     chunk: "!!!",
                     last: true
@@ -162,7 +155,7 @@ mod tests {
         );
         assert_eq!(
             p.next_token()?,
-            Some((s(&fs, 21, 1), Token::BraceEnd(Brace::Curly)))
+            Some((s(id, 21, 1), Token::BraceEnd(Brace::Curly)))
         );
         assert_eq!(p.next_token()?, None);
         Ok(())
