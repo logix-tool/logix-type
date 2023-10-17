@@ -1,6 +1,6 @@
 use crate::{
     error::{ParseError, Result, SourceSpan, Warn},
-    loader::{FileId, LogixLoader},
+    loader::{CachedFile, FileId, LogixLoader},
     token::{Brace, Token, TokenState},
     type_trait::Value,
     LogixType,
@@ -12,8 +12,7 @@ use std::io::Read;
 
 pub struct LogixParser<'fs, FS: LogixVfs> {
     _loader: &'fs mut LogixLoader<FS>,
-    file_id: FileId,
-    r: FS::RoFile,
+    file: CachedFile,
     buf: BString,
     file_pos: usize,
     pos: usize,
@@ -24,11 +23,10 @@ pub struct LogixParser<'fs, FS: LogixVfs> {
 impl<'fs, FS: LogixVfs> LogixParser<'fs, FS> {
     const READ_SIZE: usize = Token::MAX_LEN * 16;
 
-    pub(crate) fn new(loader: &'fs mut LogixLoader<FS>, file_id: FileId, r: FS::RoFile) -> Self {
+    pub(crate) fn new(loader: &'fs mut LogixLoader<FS>, file: CachedFile) -> Self {
         Self {
             _loader: loader,
-            file_id,
-            r,
+            file,
             buf: BString::new(Vec::new()),
             file_pos: 0,
             pos: 0,

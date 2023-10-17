@@ -152,7 +152,7 @@ impl HumanReport {
                 .split(b'\n')
                 .map(|b| {
                     let ret = (i, b.unwrap());
-                    i += ret.1.len();
+                    i += ret.1.len() + 1;
                     ret
                 })
                 .collect();
@@ -177,7 +177,7 @@ impl HumanReport {
 
     pub fn from_parse_error<FS: LogixVfs>(loader: &LogixLoader<FS>, e: ParseError) -> Self {
         let mut report = Self::default();
-        match &e {
+        match dbg!(&e) {
             ParseError::UnexpectedToken {
                 span,
                 while_parsing,
@@ -233,24 +233,39 @@ impl fmt::Debug for HumanReport {
             )?;
 
             for issue in &group.issues {
-                let line = String::from_utf8_lossy(&file.lines[issue.line].1);
-                let ln_width = calc_ln_width(issue.line);
-                writeln!(
-                    f,
-                    "{:>ln_width$} {} {}",
-                    (issue.line + 1).bright_blue().bold(),
-                    "|".bright_blue().bold(),
-                    line.trim_end(),
-                )?;
-                writeln!(
-                    f,
-                    "{estr:ln_width$} {pipe:}{estr:col$}{point:} {message:}",
-                    estr = "",
-                    pipe = "|".bright_blue().bold(),
-                    point = "^".repeat(issue.len).bright_red().bold(),
-                    message = issue.message,
-                    col = issue.col
-                )?;
+                let context = 5;
+                let max_line = issue.line + context;
+                for (i, (_, line)) in file
+                    .lines
+                    .iter()
+                    .enumerate()
+                    .skip(issue.line.saturating_sub(context))
+                {
+                    if i == max_line {
+                        break;
+                    }
+
+                    let line = String::from_utf8_lossy(line);
+                    let ln_width = calc_ln_width(issue.line);
+                    writeln!(
+                        f,
+                        "{:>ln_width$} {} {}",
+                        (i + 1).bright_blue().bold(),
+                        "|".bright_blue().bold(),
+                        line.trim_end(),
+                    )?;
+                    if i == issue.line {
+                        writeln!(
+                            f,
+                            "{estr:ln_width$} {pipe:} {estr:col$}{point:} {message:}",
+                            estr = "",
+                            pipe = "|".bright_blue().bold(),
+                            point = "^".repeat(issue.len).bright_red().bold(),
+                            message = issue.message,
+                            col = issue.col
+                        )?;
+                    }
+                }
             }
         }
 
