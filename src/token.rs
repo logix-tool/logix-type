@@ -20,18 +20,29 @@ pub enum Brace {
 pub enum Token<'a> {
     Ident(&'a str),
     LitStrChunk { chunk: &'a str, last: bool },
-    LitDigit(&'a str),
+    LitNumber(&'a str),
     BraceStart(Brace),
     BraceEnd(Brace),
     Colon,
     Comma,
     Newline,
 }
+impl<'a> Token<'a> {
+    pub fn token_type_name(&self) -> &'static str {
+        match self {
+            Self::Ident(_) => "identifier",
+            Self::LitStrChunk { .. } => "string literal",
+            Self::Comma => "`,`",
+            unk => todo!("{unk:?}"),
+        }
+    }
+}
 
 impl<'a> fmt::Display for Token<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Ident(value) => write!(f, "`{value}`"),
+            Self::Newline => write!(f, "`<newline>`"),
             unk => todo!("{unk:?}"),
         }
     }
@@ -72,35 +83,22 @@ impl TokenState {
                                 todo!()
                             }
                         }
-                        Some((start, first_end, '0'..='9')) => {
-                            if let Some(pos) = it.as_bytes().find_not_byteset(b"0123456789") {
-                                let end = first_end + pos;
-                                let data = &buf[start..end];
-                                (
-                                    start..end,
-                                    end,
-                                    Token::LitDigit(std::str::from_utf8(data).unwrap()),
-                                )
-                            } else {
-                                todo!()
-                            }
-                        }
-                        Some((start, first_end, '-')) => {
-                            match it.as_bytes().find_not_byteset(b"0123456789").unwrap_or(it.as_bytes().len()) {
+                        Some((start, _, '-' | '0'..='9')) => {
+                            let cur = &buf[start..];
+                            match cur.find_not_byteset(b"0123456789-._").unwrap_or(buf.len()) {
                                 0 => todo!(),
                                 pos => {
-                                    let end = first_end + pos;
-                                    let data = &buf[start..end];
+                                    let end = start + pos;
                                     (
                                         start..end,
                                         end,
-                                        Token::LitDigit(std::str::from_utf8(data).unwrap()),
+                                        Token::LitNumber(std::str::from_utf8(&cur[..pos]).unwrap()),
                                     )
                                 }
                             }
                         }
-                        Some((start, end, '{')) => (start..end, skip_any_whitespace(end, it), Token::BraceStart(Brace::Curly)),
-                        Some((start, end, '}')) => (start..end, skip_any_whitespace(end, it), Token::BraceEnd(Brace::Curly)),
+                        Some((start, end, '{')) => (start..end, skip_whitespace(end, it), Token::BraceStart(Brace::Curly)),
+                        Some((start, end, '}')) => (start..end, skip_whitespace(end, it), Token::BraceEnd(Brace::Curly)),
                         Some((start, end, '(')) => (start..end, skip_whitespace(end, it), Token::BraceStart(Brace::Paren)),
                         Some((start, end, ')')) => (start..end, skip_whitespace(end, it), Token::BraceEnd(Brace::Paren)),
                         Some((start, end, ':')) => (start..end, skip_whitespace(end, it), Token::Colon),
@@ -143,14 +141,6 @@ impl TokenState {
             }
         }
     }
-}
-
-fn skip_any_whitespace(end: usize, it: bstr::CharIndices) -> usize {
-    let (_, actual_end, _) = it
-        .take_while(|(_, _, c)| c.is_whitespace())
-        .last()
-        .unwrap_or((0, end, '\n'));
-    actual_end
 }
 
 fn skip_whitespace(end: usize, it: bstr::CharIndices) -> usize {

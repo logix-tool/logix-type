@@ -81,15 +81,15 @@ fn expected_root() -> Root {
         .collect(),
         type_map_unnamed_struct: vec![
             (
-                Str::new("key7"),
+                Str::new("key10"),
                 UnnamedNode("Howdy-do, domain!".into(), 409),
             ),
             (
-                Str::new("key8"),
+                Str::new("key11"),
                 UnnamedNode("Hi-ho, space-time!".into(), 632),
             ),
             (
-                Str::new("key9"),
+                Str::new("key12"),
                 UnnamedNode("Bonjour, infinity!".into(), 2471),
             ),
         ]

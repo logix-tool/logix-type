@@ -24,15 +24,11 @@ pub(crate) fn do_unit(
             }
         ),
         quote!(
-            match p.next_token()? {
-                Some((type_name_span, Token::Ident(#type_name_str))) => {
-                    Ok(#cr::Value {
-                        value: #prefix #type_name,
-                        span: type_name_span,
-                    })
-                }
-                unk => Err(ParseError::unexpected_token(#type_name_str, #type_name_str, unk)),
-            }
+            let type_name_span = p.req_token(#type_name_str, Token::Ident(#type_name_str))?;
+            Ok(#cr::Value {
+                value: #prefix #type_name,
+                span: type_name_span,
+            })
         ),
     )
 }
@@ -83,41 +79,50 @@ pub(crate) fn do_named(
         quote!(
             match p.next_token()? {
                 Some((type_name_span, Token::Ident(#type_name_str))) => {
-                    match p.next_token()? {
-                        Some((_, Token::BraceStart(Brace::Curly))) => {
-                            struct Tmp {
-                                #(#member_names: Option<#member_tmp_types>,)*
-                            }
-                            let mut tmp = Tmp {
-                                #(#member_names: #member_tmp_init,)*
-                            };
-                            'parse_members: loop {
-                                match p.next_token()? {
-                                    #(Some((_, Token::Ident(#member_str_names))) => match p.next_token()? {
-                                        Some((_, Token::Colon)) => {
-                                            #member_tmp_parse;
-                                            match p.next_token()? {
-                                                Some((_, Token::Newline)) => {}
-                                                unk => return Err(ParseError::unexpected_token(#type_name_str, "end of line", unk)),
-                                            }
-                                        }
-                                        unk => return Err(ParseError::unexpected_token(#type_name_str, ":", unk)),
-                                    })*
-                                    Some((_, Token::BraceEnd(Brace::Curly))) => break 'parse_members,
-                                    unk => return Err(ParseError::unexpected_token(#type_name_str, concat!(#(#member_str_names, ",",)*), unk)),
-                                }
-                            }
-                            Ok(#cr::Value {
-                                value: #prefix #type_name {
-                                    #(#member_names: #member_tmp_assign,)*
-                                },
-                                span: type_name_span,
-                            })
-                        }
-                        unk => Err(ParseError::unexpected_token(#type_name_str, "{", unk)),
+                    struct Tmp {
+                        #(#member_names: Option<#member_tmp_types>,)*
                     }
+                    let mut tmp = Tmp {
+                        #(#member_names: #member_tmp_init,)*
+                    };
+
+                    p.req_token(#type_name_str, Token::BraceStart(Brace::Curly))?;
+                    p.req_token(#type_name_str, Token::Newline)?;
+
+                    'parse_members: loop {
+                        match p.next_token()? {
+                            #(Some((_, Token::Ident(#member_str_names))) => {
+                                p.req_token(#type_name_str, Token::Colon)?;
+                                #member_tmp_parse;
+                                p.req_token(#type_name_str, Token::Newline)?;
+                            })*
+                            Some((_, Token::BraceEnd(Brace::Curly))) => break 'parse_members,
+                            Some((span, token)) => return Err(ParseError::UnexpectedToken {
+                                span,
+                                while_parsing: #type_name_str,
+                                wanted: Wanted::Tokens(&[
+                                    #(Token::Ident(#member_str_names),)*
+                                    Token::BraceEnd(Brace::Curly),
+                                ]),
+                                got_token: token.token_type_name(),
+                            }),
+                            None => todo!("Unexpected end of file"),
+                        }
+                    }
+                    Ok(#cr::Value {
+                        value: #prefix #type_name {
+                            #(#member_names: #member_tmp_assign,)*
+                        },
+                        span: type_name_span,
+                    })
                 }
-                unk => Err(ParseError::unexpected_token(#type_name_str, #type_name_str, unk)),
+                Some((span, token)) => Err(ParseError::UnexpectedToken {
+                    span,
+                    while_parsing: #type_name_str,
+                    wanted: Wanted::Token(Token::Ident(#type_name_str)),
+                    got_token: token.token_type_name(),
+                }),
+                None => todo!("Unexpected end of file"),
             }
         ),
     )
@@ -155,47 +160,39 @@ pub(crate) fn do_unnamed(
             }
         ),
         quote!(
-            match p.next_token()? {
-                Some((type_name_span, Token::Ident(#type_name_str))) => {
-                    match p.next_token()? {
-                        Some((_, Token::BraceStart(Brace::Paren))) => {
-                            Ok(#cr::Value {
-                                value: #prefix #type_name (
-                                    #({
-                                        let value = #member_parse;
+            let type_name_span = p.req_token(#type_name_str, Token::Ident(#type_name_str))?;
+            p.req_token(#type_name_str, Token::BraceStart(Brace::Paren))?;
+            Ok(#cr::Value {
+                value: #prefix #type_name (
+                    #({
+                        let value = #member_parse;
 
-                                        match p.next_token()? {
-                                            Some((_, Token::Comma)) => {},
-                                            unk => return Err(ParseError::unexpected_token(#type_name_str, ",", unk)),
-                                        }
+                        p.req_token(#type_name_str, Token::Comma)?;
 
-                                        value
-                                    },)*
-                                    #({
-                                        let value = #last_member_parse;
+                        value
+                    },)*
+                    #({
+                        let value = #last_member_parse;
 
-                                        match p.next_token()? {
-                                            Some((_, Token::Comma)) => {
-                                                match p.next_token()? {
-                                                    Some((_, Token::BraceEnd(Brace::Paren))) => {},
-                                                    unk => return Err(ParseError::unexpected_token(#type_name_str, ")", unk)),
-                                                }
-                                            },
-                                            Some((_, Token::BraceEnd(Brace::Paren))) => {},
-                                            unk => return Err(ParseError::unexpected_token(#type_name_str, ", or )", unk)),
-                                        }
-
-                                        value
-                                    },)*
-                                ),
-                                span: type_name_span,
-                            })
+                        match p.next_token()? {
+                            Some((_, Token::Comma)) => {
+                                p.req_token(#type_name_str, Token::BraceEnd(Brace::Paren))?;
+                            },
+                            Some((_, Token::BraceEnd(Brace::Paren))) => {},
+                            Some((span, token)) => return Err(ParseError::UnexpectedToken {
+                                span,
+                                while_parsing: #type_name_str,
+                                wanted: Wanted::Tokens(&[Token::Comma, Token::BraceEnd(Brace::Paren)]),
+                                got_token: token.token_type_name(),
+                            }),
+                            None => todo!("Unexpected end of file"),
                         }
-                        unk => Err(ParseError::unexpected_token(#type_name_str, "(", unk)),
-                    }
-                }
-                unk => Err(ParseError::unexpected_token(#type_name_str, #type_name_str, unk)),
-            }
+
+                        value
+                    },)*
+                ),
+                span: type_name_span,
+            })
         ),
     )
 }

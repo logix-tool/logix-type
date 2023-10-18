@@ -15,10 +15,10 @@ Root {
     key3: 0
   }
   type_map_str: {
-    key4: "Hi, space!",
-    key5": "Yo, multiverse!",
-    key6": "Sup, dimension!",
-  ]
+    key4: "Hi, space!"
+    key5: "Yo, multiverse!"
+    key6: "Sup, dimension!"
+  }
   type_map_named_struct: {
     key7: NamedNode {
       s: "Ahoy, planet!"

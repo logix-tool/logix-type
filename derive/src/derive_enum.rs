@@ -45,7 +45,12 @@ pub(crate) fn do_any(
                 #(Some((type_name_span, Token::Ident(#variant_names_str))) => {
                     #variant_parsers
                 })*
-                unk => Err(ParseError::unexpected_token(#type_name_str, concat!(#(#variant_names_str, ",",)*), unk)),
+                Some((span, token)) => Err(ParseError::UnexpectedToken {
+                    span,
+                    while_parsing: #type_name_str,
+                    wanted: Wanted::Tokens(&[#(#variant_names_str,)*]),
+                    got_token: token.token_type_name(),
+                }),
             }
         ),
     )

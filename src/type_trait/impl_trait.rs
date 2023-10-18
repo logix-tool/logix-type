@@ -38,7 +38,7 @@ macro_rules! impl_for_int {
 
             fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<Self>> {
                 Ok(match p.next_token()? {
-                    Some((span, Token::LitDigit(num))) => Value {
+                    Some((span, Token::LitNumber(num))) => Value {
                         value: num.parse().unwrap(), // TODO(2023.10): Return a sensible error
                         span,
                     },
@@ -60,25 +60,23 @@ impl<T: LogixType> LogixType for Map<T> {
     };
 
     fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<Self>> {
-        match p.next_token()? {
-            Some((start, Token::BraceStart(Brace::Curly))) => {
-                let mut map = Map::new();
+        let mut map = Map::new();
 
-                while let Some((key, value)) = p.read_key_value(Brace::Curly)? {
-                    if let (i, Some(_)) = map.insert_full(key.value, value.value) {
-                        p.warning(Warn::DuplicateMapEntry {
-                            span: key.span,
-                            key: map.get_index(i).unwrap().0.clone(),
-                        })?;
-                    }
-                }
+        let start = p.req_token("map", Token::BraceStart(Brace::Curly))?;
+        p.req_token("map", Token::Newline)?;
 
-                Ok(Value {
-                    value: map,
-                    span: start,
-                })
+        while let Some((key, value)) = p.read_key_value("map", Brace::Curly)? {
+            if let (i, Some(_)) = map.insert_full(key.value, value.value) {
+                p.warning(Warn::DuplicateMapEntry {
+                    span: key.span,
+                    key: map.get_index(i).unwrap().0.clone(),
+                })?;
             }
-            unk => todo!("{unk:#?}"),
         }
+
+        Ok(Value {
+            value: map,
+            span: start,
+        })
     }
 }

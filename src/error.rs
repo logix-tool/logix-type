@@ -54,6 +54,21 @@ impl SourceSpan {
     }
 }
 
+#[derive(Debug)]
+pub enum Wanted {
+    Token(Token<'static>),
+    Tokens(&'static [Token<'static>]),
+}
+
+impl fmt::Display for Wanted {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Token(token) => fmt::Display::fmt(token, f),
+            unk => todo!("{unk:?}"),
+        }
+    }
+}
+
 #[derive(Error)]
 pub enum ParseError {
     #[error(transparent)]
@@ -80,12 +95,12 @@ pub enum ParseError {
         wanted: &'static str,
     },
 
-    #[error("Unexpected token {got} while parsing {while_parsing}, expected {wanted:?}")]
+    #[error("Unexpected token while parsing {while_parsing}, expected {wanted}")]
     UnexpectedToken {
         span: SourceSpan,
         while_parsing: &'static str,
-        wanted: &'static str,
-        got: String,
+        got_token: &'static str,
+        wanted: Wanted,
     },
 }
 
@@ -103,26 +118,6 @@ impl ParseError {
     pub fn duplicate_member(type_name: &'static str, member: &'static str) -> Self {
         Self::DuplicateMember { type_name, member }
     }
-
-    pub fn unexpected_token(
-        while_parsing: &'static str,
-        wanted: &'static str,
-        got: Option<(SourceSpan, Token)>,
-    ) -> Self {
-        if let Some((span, got)) = got {
-            Self::UnexpectedToken {
-                span,
-                while_parsing,
-                wanted,
-                got: got.to_string(),
-            }
-        } else {
-            Self::UnexpectedEndOfFile {
-                while_parsing,
-                wanted,
-            }
-        }
-    }
 }
 
 impl fmt::Debug for ParseError {
@@ -132,15 +127,15 @@ impl fmt::Debug for ParseError {
             Self::UnexpectedToken {
                 span,
                 while_parsing,
+                got_token,
                 wanted,
-                got,
             } => {
                 let ln_width = calc_ln_width(span.line + 1);
                 writeln!(
                     f,
                     "{}{}",
                     "error: ".bright_red().bold(),
-                    format_args!("Unexpected token {got} while parsing {while_parsing}").bold()
+                    format_args!("Unexpected {got_token} while parsing {while_parsing}").bold()
                 )?;
 
                 writeln!(

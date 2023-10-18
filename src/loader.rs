@@ -4,7 +4,7 @@ use bstr::ByteSlice;
 use indexmap::IndexMap;
 use logix_vfs::LogixVfs;
 
-use crate::{error::ParseError, LogixType, __private::LogixParser};
+use crate::{error::ParseError, LogixType, __private::LogixParser, token::Token};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct FileId {
@@ -75,6 +75,8 @@ impl<FS: LogixVfs> LogixLoader<FS> {
         let mut p = LogixParser::new(self, &file);
 
         let ret = T::logix_parse(&mut p)?;
+
+        p.req_token(T::DESCRIPTOR.name, Token::Newline)?;
 
         match p.next_token()? {
             Some(unk) => todo!("{unk:?}"),
