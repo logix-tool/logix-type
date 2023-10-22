@@ -1,10 +1,14 @@
 Root {
+  // Comment on the line before
   type_i8: -42
-  type_u8: 42
+  type_u8: 42 // Comment on the same line
   type_i16: -1337
   type_u16: 1337
   type_i32: -69696
   type_u32: 69696
+  /*
+  Block comment
+  */
   type_i64: -7202218937
   type_u64: 7202218937
   type_str: "Hello, world!"

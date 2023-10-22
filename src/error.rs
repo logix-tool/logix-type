@@ -64,7 +64,18 @@ impl fmt::Display for Wanted {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Token(token) => fmt::Display::fmt(token, f),
-            unk => todo!("{unk:?}"),
+            Self::Tokens([token]) => fmt::Display::fmt(token, f),
+            Self::Tokens([a, b]) => write!(f, "either {a} or {b}"),
+            Self::Tokens(tokens) => {
+                let (first, tokens) = tokens.split_first().unwrap();
+                let (last, tokens) = tokens.split_last().unwrap();
+
+                write!(f, "one of {first}")?;
+                for token in tokens {
+                    write!(f, ", {token}")?;
+                }
+                write!(f, ", or {last}")
+            }
         }
     }
 }

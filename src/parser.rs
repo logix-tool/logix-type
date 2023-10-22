@@ -56,32 +56,37 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
     }
 
     fn raw_next_token(&mut self, advance: bool) -> Result<Option<(SourceSpan, usize, Token)>> {
-        while self.cur_col == self.cur_line.len() {
-            if let Some(line) = self.lines.next() {
-                let ret = (self.cur_span(0..0), 0, Token::Newline);
-                self.cur_line = line;
-                self.cur_col = 0;
-                self.cur_ln += 1;
-                if self.cur_ln != 1 {
-                    return Ok(Some(ret));
+        'try_again: loop {
+            while self.cur_col == self.cur_line.len() {
+                if let Some(line) = self.lines.next() {
+                    let ret = (self.cur_span(0..0), 0, Token::Newline);
+                    self.cur_line = line;
+                    self.cur_col = 0;
+                    self.cur_ln += 1;
+                    if self.cur_ln != 1 {
+                        return Ok(Some(ret));
+                    }
+                } else if !self.eof {
+                    self.eof = true;
+                    return Ok(Some((self.cur_span(0..0), 0, Token::Newline)));
+                } else {
+                    return Ok(None);
                 }
-            } else if !self.eof {
-                self.eof = true;
-                return Ok(Some((self.cur_span(0..0), 0, Token::Newline)));
-            } else {
-                return Ok(None);
             }
-        }
 
-        match self.state.parse_token(&self.cur_line[self.cur_col..]) {
-            Ok(Some((range, size, token))) => {
-                let span = self.cur_span(range);
-                if advance {
-                    self.cur_col += size;
+            return match self.state.parse_token(&self.cur_line[self.cur_col..]) {
+                Ok(Some((range, size, token))) => {
+                    let span = self.cur_span(range);
+                    if advance {
+                        self.cur_col += size;
+                    }
+                    if matches!(token, Token::LineComment(..)) {
+                        continue 'try_again;
+                    }
+                    Ok(Some((span, size, token)))
                 }
-                Ok(Some((span, size, token)))
-            }
-            unk => todo!("{unk:?}"),
+                unk => todo!("{unk:?}"),
+            };
         }
     }
 

@@ -101,8 +101,8 @@ pub(crate) fn do_named(
                                 span,
                                 while_parsing: #type_name_str,
                                 wanted: Wanted::Tokens(&[
-                                    #(Token::Ident(#member_str_names),)*
                                     Token::BraceEnd(Brace::Curly),
+                                    #(Token::Ident(#member_str_names),)*
                                 ]),
                                 got_token: token.token_type_name(),
                             }),

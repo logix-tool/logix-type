@@ -26,13 +26,16 @@ pub enum Token<'a> {
     Colon,
     Comma,
     Newline,
+    LineComment(&'a str),
 }
 impl<'a> Token<'a> {
     pub fn token_type_name(&self) -> &'static str {
         match self {
             Self::Ident(_) => "identifier",
             Self::LitStrChunk { .. } => "string literal",
+            Self::BraceEnd(Brace::Curly) => "`}`",
             Self::Comma => "`,`",
+            Self::LineComment(_) => "line comment",
             unk => todo!("{unk:?}"),
         }
     }
@@ -42,6 +45,7 @@ impl<'a> fmt::Display for Token<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Ident(value) => write!(f, "`{value}`"),
+            Self::BraceEnd(Brace::Curly) => write!(f, "`}}`"),
             Self::Newline => write!(f, "`<newline>`"),
             unk => todo!("{unk:?}"),
         }
@@ -95,6 +99,14 @@ impl TokenState {
                                         Token::LitNumber(std::str::from_utf8(&cur[..pos]).unwrap()),
                                     )
                                 }
+                            }
+                        }
+                        Some((start, end, '/')) => {
+                            if let Some(comment) = it.as_bytes().strip_prefix(b"/") {
+                                let end = end + comment.len() + 1;
+                                (start..end, end, Token::LineComment(std::str::from_utf8(comment).unwrap()))
+                            } else {
+                                todo!()
                             }
                         }
                         Some((start, end, '{')) => (start..end, skip_whitespace(end, it), Token::BraceStart(Brace::Curly)),
