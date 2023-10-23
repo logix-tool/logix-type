@@ -107,7 +107,7 @@ impl TokenState {
                             if let Some(comment) = it.as_bytes().strip_prefix(b"/") {
                                 let end = end + comment.len() + 1;
                                 (start..end, end, Token::CommentChunk { chunk: std::str::from_utf8(comment).unwrap(), last: true })
-                            } else if let Some(comment) = it.as_bytes().strip_prefix(b"*") {
+                            } else if it.as_bytes().starts_with(b"*") {
                                 it.next();
                                 *self = Self::Comment(0);
                                 continue;

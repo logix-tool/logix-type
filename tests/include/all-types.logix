@@ -36,6 +36,11 @@ Root {
     } // Comment on the end curly brace
     key9: NamedNode {
       s: "G'day, cluster!"
+      /*
+        /*
+          nested comments
+        */
+      */
       v: 597
     }
   }
