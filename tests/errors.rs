@@ -34,8 +34,8 @@ impl Loader {
 
 #[derive(LogixType, PartialEq, Debug)]
 struct Struct {
-    a: u32,
-    b: String,
+    aaa: u32,
+    bbbb: String,
 }
 
 fn debval(s: &impl fmt::Debug) -> String {
@@ -65,7 +65,7 @@ fn empty_file() {
         debval(&e),
         concat!(
             "\n",
-            "error: Unexpected end of file while parsing Struct\n",
+            "error: Unexpected end of file while parsing `Struct`\n",
             "   ---> test.logix:1:0\n",
             "    |\n",
         )
@@ -73,7 +73,7 @@ fn empty_file() {
 
     assert_eq!(
         disval(&e),
-        "Unexpected end of file while parsing Struct, expected `Struct`"
+        "Unexpected end of file while parsing `Struct`, expected `Struct` in test.logix:1:0"
     );
 }
 
@@ -89,8 +89,8 @@ fn unclosed_curly_brace() {
             while_parsing: "Struct",
             wanted: Wanted::Tokens(&[
                 Token::BraceEnd(Brace::Curly),
-                Token::Ident("a"),
-                Token::Ident("b")
+                Token::Ident("aaa"),
+                Token::Ident("bbbb")
             ]),
             got_token: "end of file",
         }
@@ -100,16 +100,182 @@ fn unclosed_curly_brace() {
         debval(&e),
         concat!(
             "\n",
-            "error: Unexpected end of file while parsing Struct\n",
+            "error: Unexpected end of file while parsing `Struct`\n",
             "   ---> test.logix:1:8\n",
             "    |\n",
             "  1 | Struct {\n",
-            "    |          Expected one of `}`, `a`, or `b`\n",
+            "    |          Expected one of `}`, `aaa`, or `bbbb`\n",
         )
     );
 
     assert_eq!(
         disval(&e),
-        "Unexpected end of file while parsing Struct, expected one of `}`, `a`, or `b`"
+        "Unexpected end of file while parsing `Struct`, expected one of `}`, `aaa`, or `bbbb` in test.logix:1:8"
+    );
+}
+
+#[test]
+fn no_newline() {
+    let mut l = Loader::init().with_file("test.logix", b"Struct {}");
+    let e = l.loader.load_file::<Struct>("test.logix").unwrap_err();
+
+    assert_eq!(
+        e,
+        ParseError::UnexpectedToken {
+            span: l.span("test.logix", 1, 8, 1),
+            while_parsing: "Struct",
+            wanted: Wanted::Token(Token::Newline),
+            got_token: "`}`",
+        }
+    );
+
+    assert_eq!(
+        debval(&e),
+        concat!(
+            "\n",
+            "error: Unexpected `}` while parsing `Struct`\n",
+            "   ---> test.logix:1:8\n",
+            "    |\n",
+            "  1 | Struct {}\n",
+            "    |         ^ Expected `<newline>`\n",
+        )
+    );
+
+    assert_eq!(
+        disval(&e),
+        "Unexpected `}` while parsing `Struct`, expected `<newline>` in test.logix:1:8"
+    );
+}
+
+#[test]
+fn no_members() {
+    let mut l = Loader::init().with_file("test.logix", b"Struct {\n}");
+    let e = l.loader.load_file::<Struct>("test.logix").unwrap_err();
+
+    assert_eq!(
+        e,
+        ParseError::MissingMember {
+            span: l.span("test.logix", 2, 0, 1),
+            type_name: "Struct",
+            member: "aaa",
+        }
+    );
+
+    assert_eq!(
+        debval(&e),
+        concat!(
+            "\n",
+            "error: Missing member while parsing `Struct`\n",
+            "   ---> test.logix:2:0\n",
+            "    |\n",
+            "  1 | Struct {\n",
+            "  2 | }\n",
+            "    | ^ Expected `aaa`\n",
+        )
+    );
+
+    assert_eq!(
+        disval(&e),
+        "Missing member `aaa` while parsing `Struct` in test.logix:2:0"
+    );
+}
+
+#[test]
+fn one_member_a() {
+    let mut l = Loader::init().with_file("test.logix", b"Struct {\n  aaa: 10\n}");
+    let e = l.loader.load_file::<Struct>("test.logix").unwrap_err();
+
+    assert_eq!(
+        e,
+        ParseError::MissingMember {
+            span: l.span("test.logix", 3, 0, 1),
+            type_name: "Struct",
+            member: "bbbb",
+        }
+    );
+
+    assert_eq!(
+        debval(&e),
+        concat!(
+            "\n",
+            "error: Missing member while parsing `Struct`\n",
+            "   ---> test.logix:3:0\n",
+            "    |\n",
+            "  2 |   aaa: 10\n",
+            "  3 | }\n",
+            "    | ^ Expected `bbbb`\n",
+        )
+    );
+
+    assert_eq!(
+        disval(&e),
+        "Missing member `bbbb` while parsing `Struct` in test.logix:3:0"
+    );
+}
+
+#[test]
+fn one_member_b() {
+    let mut l = Loader::init().with_file("test.logix", b"Struct {\n  bbbb: \"yo\"\n}");
+    let e = l.loader.load_file::<Struct>("test.logix").unwrap_err();
+
+    assert_eq!(
+        e,
+        ParseError::MissingMember {
+            span: l.span("test.logix", 3, 0, 1),
+            type_name: "Struct",
+            member: "aaa",
+        }
+    );
+
+    assert_eq!(
+        debval(&e),
+        concat!(
+            "\n",
+            "error: Missing member while parsing `Struct`\n",
+            "   ---> test.logix:3:0\n",
+            "    |\n",
+            "  2 |   bbbb: \"yo\"\n",
+            "  3 | }\n",
+            "    | ^ Expected `aaa`\n",
+        )
+    );
+
+    assert_eq!(
+        disval(&e),
+        "Missing member `aaa` while parsing `Struct` in test.logix:3:0"
+    );
+}
+
+#[test]
+fn duplicate_member() {
+    let mut l = Loader::init().with_file("test.logix", b"Struct {\n  aaa: 20\n  aaa: 30\n}");
+    let e = l.loader.load_file::<Struct>("test.logix").unwrap_err();
+
+    assert_eq!(
+        e,
+        ParseError::DuplicateMember {
+            span: l.span("test.logix", 3, 2, 3),
+            type_name: "Struct",
+            member: "aaa",
+        }
+    );
+
+    assert_eq!(
+        debval(&e),
+        concat!(
+            "\n",
+            "error: Duplicate member while parsing `Struct`\n",
+            "   ---> test.logix:3:2\n",
+            "    |\n",
+            "  2 |   aaa: 20\n",
+            "  3 |   aaa: 30\n",
+            "    |   ^^^ Unexpected `aaa`\n",
+            "  4 | }\n",
+        )
+    );
+
+    assert_eq!(
+        disval(&e),
+        "Duplicate member `aaa` while parsing `Struct` in test.logix:3:2"
     );
 }

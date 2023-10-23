@@ -64,6 +64,18 @@ impl SourceSpan {
     }
 }
 
+impl fmt::Display for SourceSpan {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}:{}:{}",
+            self.file.path().display(),
+            self.line,
+            self.col.start
+        )
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub enum Wanted {
     Token(Token<'static>),
@@ -98,19 +110,21 @@ pub enum ParseError {
     #[error("Warning treated as error: {0}")]
     Warning(Warn),
 
-    #[error("Missing member {type_name} in {member}")]
+    #[error("Missing member `{member}` while parsing `{type_name}` in {span}")]
     MissingMember {
+        span: SourceSpan,
         type_name: &'static str,
         member: &'static str,
     },
 
-    #[error("Duplicate member {type_name} in {member}")]
+    #[error("Duplicate member `{member}` while parsing `{type_name}` in {span}")]
     DuplicateMember {
+        span: SourceSpan,
         type_name: &'static str,
         member: &'static str,
     },
 
-    #[error("Unexpected {got_token} while parsing {while_parsing}, expected {wanted}")]
+    #[error("Unexpected {got_token} while parsing `{while_parsing}`, expected {wanted} in {span}")]
     UnexpectedToken {
         span: SourceSpan,
         while_parsing: &'static str,
@@ -125,14 +139,6 @@ impl ParseError {
             unk => todo!("{e:?} => {unk:?}"),
         }
     }
-
-    pub fn missing_member(type_name: &'static str, member: &'static str) -> Self {
-        Self::MissingMember { type_name, member }
-    }
-
-    pub fn duplicate_member(type_name: &'static str, member: &'static str) -> Self {
-        Self::DuplicateMember { type_name, member }
-    }
 }
 
 impl fmt::Debug for ParseError {
@@ -141,57 +147,83 @@ impl fmt::Debug for ParseError {
         match self {
             Self::FsError(_) => todo!(),
             Self::Warning(_) => todo!(),
-            Self::MissingMember { .. } => todo!(),
-            Self::DuplicateMember { .. } => todo!(),
+            Self::MissingMember {
+                span,
+                type_name,
+                member,
+            } => write_error(
+                f,
+                format_args!("Missing member while parsing `{type_name}`"),
+                span,
+                format_args!("Expected `{member}`"),
+            ),
+            Self::DuplicateMember {
+                span,
+                type_name,
+                member,
+            } => write_error(
+                f,
+                format_args!("Duplicate member while parsing `{type_name}`"),
+                span,
+                format_args!("Unexpected `{member}`"),
+            ),
             Self::UnexpectedToken {
                 span,
                 while_parsing,
                 got_token,
                 wanted,
-            } => {
-                let ln_width = calc_ln_width(span.line + 1);
-                writeln!(
-                    f,
-                    "{}{}",
-                    "error: ".bright_red().bold(),
-                    format_args!("Unexpected {got_token} while parsing {while_parsing}").bold()
-                )?;
-
-                writeln!(
-                    f,
-                    "   {} {}:{}:{}",
-                    "--->".bright_blue().bold(),
-                    span.file.path().display(),
-                    span.line,
-                    span.col.start,
-                )?;
-                writeln!(f, "{:>ln_width$} {}", "", "|".bright_blue().bold(),)?;
-
-                for (ln, span, line) in span.lines(1) {
-                    writeln!(
-                        f,
-                        "{:>ln_width$} {} {}",
-                        ln.bright_blue().bold(),
-                        "|".bright_blue().bold(),
-                        line.trim_end(),
-                    )?;
-                    if let Some(span) = span {
-                        let col = span.start;
-                        writeln!(
-                            f,
-                            "{:>ln_width$} {} {:>col$}{} {}",
-                            "",
-                            "|".bright_blue().bold(),
-                            "",
-                            "^".repeat(span.len()).bright_red().bold(),
-                            format_args!("Expected {wanted}").bright_red().bold(),
-                        )?;
-                    }
-                }
-                Ok(())
-            }
+            } => write_error(
+                f,
+                format_args!("Unexpected {got_token} while parsing `{while_parsing}`"),
+                span,
+                format_args!("Expected {wanted}"),
+            ),
         }
     }
+}
+
+fn write_error(
+    f: &mut impl fmt::Write,
+    message: impl fmt::Display,
+    span: &SourceSpan,
+    expected: impl fmt::Display,
+) -> fmt::Result {
+    let ln_width = calc_ln_width(span.line + 1);
+    writeln!(f, "{}{}", "error: ".bright_red().bold(), message.bold())?;
+
+    writeln!(
+        f,
+        "   {} {}:{}:{}",
+        "--->".bright_blue().bold(),
+        span.file.path().display(),
+        span.line,
+        span.col.start,
+    )?;
+    writeln!(f, "{:>ln_width$} {}", "", "|".bright_blue().bold(),)?;
+
+    for (ln, span, line) in span.lines(1) {
+        writeln!(
+            f,
+            "{:>ln_width$} {} {}",
+            ln.bright_blue().bold(),
+            "|".bright_blue().bold(),
+            line.trim_end(),
+        )?;
+        if let Some(span) = span {
+            let col = span.start;
+            writeln!(
+                f,
+                "{:>ln_width$} {} {:>col$}{} {}",
+                "",
+                "|".bright_blue().bold(),
+                "",
+                "^".repeat(span.len()).bright_red().bold(),
+                expected.bright_red().bold(),
+            )?;
+        }
+    }
+
+    Ok(())
 }
 
 #[derive(Error)]

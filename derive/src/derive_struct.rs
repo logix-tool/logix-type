@@ -58,14 +58,20 @@ pub(crate) fn do_named(
         member_tmp_init.push(quote!(None));
         member_tmp_parse.push(quote!(
             if tmp.#fname.is_some() {
-                return Err(ParseError::duplicate_member(#type_name_str, #fname_str));
+                return Err(ParseError::DuplicateMember {
+                    span,
+                    type_name: #type_name_str,
+                    member: #fname_str,
+                });
             }
             tmp.#fname = Some(<#ty as #cr::LogixType>::logix_parse(p)?.value)
         ));
         member_tmp_types.push(ty);
-        member_tmp_assign.push(
-            quote!(tmp.#fname.ok_or_else(|| ParseError::missing_member(#type_name_str, #fname_str))?),
-        );
+        member_tmp_assign.push(quote!(tmp.#fname.ok_or_else(|| ParseError::MissingMember {
+                span: curly_span.clone(),
+                type_name: #type_name_str,
+                member: #fname_str,
+            })?));
         member_names.push(fname);
         member_str_names.push(fname_str);
     }
@@ -86,17 +92,19 @@ pub(crate) fn do_named(
                         #(#member_names: #member_tmp_init,)*
                     };
 
-                    p.req_token(#type_name_str, Token::BraceStart(Brace::Curly))?;
+                    let mut curly_span = p.req_token(#type_name_str, Token::BraceStart(Brace::Curly))?;
                     p.req_token(#type_name_str, Token::Newline)?;
-
                     'parse_members: loop {
                         match p.next_token()? {
-                            #((_, Token::Ident(#member_str_names)) => {
+                            #((span, Token::Ident(#member_str_names)) => {
                                 p.req_token(#type_name_str, Token::Colon)?;
                                 #member_tmp_parse;
                                 p.req_token(#type_name_str, Token::Newline)?;
                             })*
-                            (_, Token::BraceEnd(Brace::Curly)) => break 'parse_members,
+                            (span, Token::BraceEnd(Brace::Curly)) => {
+                                curly_span = span;
+                                break 'parse_members;
+                            }
                             (span, token) => return Err(ParseError::UnexpectedToken {
                                 span,
                                 while_parsing: #type_name_str,
