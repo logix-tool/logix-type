@@ -49,6 +49,15 @@ impl<FS: LogixVfs> LogixLoader<FS> {
         }
     }
 
+    pub(crate) fn get_file(&self, path: impl AsRef<Path>) -> Option<CachedFile> {
+        let (key, value) = self.files.get_key_value(path.as_ref())?;
+
+        Some(CachedFile {
+            path: key.clone(),
+            data: value.clone(),
+        })
+    }
+
     pub(crate) fn open_file(&mut self, path: impl AsRef<Path>) -> Result<CachedFile, ParseError> {
         match self
             .files
@@ -79,8 +88,8 @@ impl<FS: LogixVfs> LogixLoader<FS> {
         p.req_token(T::DESCRIPTOR.name, Token::Newline)?;
 
         match p.next_token()? {
-            Some(unk) => todo!("{unk:?}"),
-            None => Ok(ret.value),
+            (_, Token::Eof) => Ok(ret.value),
+            unk => todo!("{unk:?}"),
         }
     }
 }

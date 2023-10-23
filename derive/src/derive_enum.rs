@@ -42,10 +42,10 @@ pub(crate) fn do_any(
         ),
         quote!(
             match p.next_token()? {
-                #(Some((type_name_span, Token::Ident(#variant_names_str))) => {
+                #((type_name_span, Token::Ident(#variant_names_str)) => {
                     #variant_parsers
                 })*
-                Some((span, token)) => Err(ParseError::UnexpectedToken {
+                (span, token) => Err(ParseError::UnexpectedToken {
                     span,
                     while_parsing: #type_name_str,
                     wanted: Wanted::Tokens(&[#(#variant_names_str,)*]),

@@ -1,8 +1,8 @@
-use crate::loader::CachedFile;
+use crate::{loader::CachedFile, LogixLoader};
 use bstr::ByteSlice;
 use core::fmt;
 use owo_colors::OwoColorize;
-use std::{borrow::Cow, ops::Range};
+use std::{borrow::Cow, ops::Range, path::Path};
 
 use logix_vfs::LogixVfs;
 use thiserror::Error;
@@ -19,6 +19,16 @@ pub struct SourceSpan {
 }
 
 impl SourceSpan {
+    pub fn new_for_test(
+        loader: &LogixLoader<impl LogixVfs>,
+        path: impl AsRef<Path>,
+        line: usize,
+        col: usize,
+        len: usize,
+    ) -> Self {
+        Self::new(&loader.get_file(path).unwrap(), line, col, len)
+    }
+
     pub(crate) fn new(file: &CachedFile, line: usize, col: usize, len: usize) -> Self {
         let scol = u16::try_from(col).unwrap();
         let ecol = u16::try_from(col + len).unwrap();
@@ -54,7 +64,7 @@ impl SourceSpan {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Wanted {
     Token(Token<'static>),
     Tokens(&'static [Token<'static>]),
@@ -80,7 +90,7 @@ impl fmt::Display for Wanted {
     }
 }
 
-#[derive(Error)]
+#[derive(Error, PartialEq)]
 pub enum ParseError {
     #[error(transparent)]
     FsError(#[from] logix_vfs::Error),
@@ -100,13 +110,7 @@ pub enum ParseError {
         member: &'static str,
     },
 
-    #[error("Unexpected end of file while parsing {while_parsing}, expected {wanted:?}")]
-    UnexpectedEndOfFile {
-        while_parsing: &'static str,
-        wanted: &'static str,
-    },
-
-    #[error("Unexpected token while parsing {while_parsing}, expected {wanted}")]
+    #[error("Unexpected {got_token} while parsing {while_parsing}, expected {wanted}")]
     UnexpectedToken {
         span: SourceSpan,
         while_parsing: &'static str,
@@ -135,6 +139,10 @@ impl fmt::Debug for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f)?;
         match self {
+            Self::FsError(_) => todo!(),
+            Self::Warning(_) => todo!(),
+            Self::MissingMember { .. } => todo!(),
+            Self::DuplicateMember { .. } => todo!(),
             Self::UnexpectedToken {
                 span,
                 while_parsing,
@@ -182,7 +190,6 @@ impl fmt::Debug for ParseError {
                 }
                 Ok(())
             }
-            _ => writeln!(f, "TODO(2023.10): {self}"),
         }
     }
 }
@@ -210,7 +217,7 @@ fn calc_ln_width(i: usize) -> usize {
     }
 }
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum Warn {
     #[error("Duplicate map entry {key:?}")]
     DuplicateMapEntry { span: SourceSpan, key: Str },

@@ -78,7 +78,7 @@ pub(crate) fn do_named(
         ),
         quote!(
             match p.next_token()? {
-                Some((type_name_span, Token::Ident(#type_name_str))) => {
+                (type_name_span, Token::Ident(#type_name_str)) => {
                     struct Tmp {
                         #(#member_names: Option<#member_tmp_types>,)*
                     }
@@ -91,13 +91,13 @@ pub(crate) fn do_named(
 
                     'parse_members: loop {
                         match p.next_token()? {
-                            #(Some((_, Token::Ident(#member_str_names))) => {
+                            #((_, Token::Ident(#member_str_names)) => {
                                 p.req_token(#type_name_str, Token::Colon)?;
                                 #member_tmp_parse;
                                 p.req_token(#type_name_str, Token::Newline)?;
                             })*
-                            Some((_, Token::BraceEnd(Brace::Curly))) => break 'parse_members,
-                            Some((span, token)) => return Err(ParseError::UnexpectedToken {
+                            (_, Token::BraceEnd(Brace::Curly)) => break 'parse_members,
+                            (span, token) => return Err(ParseError::UnexpectedToken {
                                 span,
                                 while_parsing: #type_name_str,
                                 wanted: Wanted::Tokens(&[
@@ -106,7 +106,6 @@ pub(crate) fn do_named(
                                 ]),
                                 got_token: token.token_type_name(),
                             }),
-                            None => todo!("Unexpected end of file"),
                         }
                     }
                     Ok(#cr::Value {
@@ -116,13 +115,12 @@ pub(crate) fn do_named(
                         span: type_name_span,
                     })
                 }
-                Some((span, token)) => Err(ParseError::UnexpectedToken {
+                (span, token) => Err(ParseError::UnexpectedToken {
                     span,
                     while_parsing: #type_name_str,
                     wanted: Wanted::Token(Token::Ident(#type_name_str)),
                     got_token: token.token_type_name(),
                 }),
-                None => todo!("Unexpected end of file"),
             }
         ),
     )
@@ -175,17 +173,16 @@ pub(crate) fn do_unnamed(
                         let value = #last_member_parse;
 
                         match p.next_token()? {
-                            Some((_, Token::Comma)) => {
+                            (_, Token::Comma) => {
                                 p.req_token(#type_name_str, Token::BraceEnd(Brace::Paren))?;
                             },
-                            Some((_, Token::BraceEnd(Brace::Paren))) => {},
-                            Some((span, token)) => return Err(ParseError::UnexpectedToken {
+                            (_, Token::BraceEnd(Brace::Paren)) => {},
+                            (span, token) => return Err(ParseError::UnexpectedToken {
                                 span,
                                 while_parsing: #type_name_str,
                                 wanted: Wanted::Tokens(&[Token::Comma, Token::BraceEnd(Brace::Paren)]),
                                 got_token: token.token_type_name(),
                             }),
-                            None => todo!("Unexpected end of file"),
                         }
 
                         value

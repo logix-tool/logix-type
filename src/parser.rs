@@ -33,14 +33,13 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
             cur_ln: 0,
             state: TokenState::Normal,
             eof: false,
-            last_was_newline: false,
+            last_was_newline: true,
         }
     }
 
-    pub fn next_token(&mut self) -> Result<Option<(SourceSpan, Token)>> {
-        Ok(self
-            .raw_next_token(true)?
-            .map(|(span, _, token)| (span, token)))
+    pub fn next_token(&mut self) -> Result<(SourceSpan, Token)> {
+        self.raw_next_token(true)
+            .map(|(span, _, token)| (span, token))
     }
 
     pub fn warning(&self, warning: Warn) -> Result<()> {
@@ -57,7 +56,7 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
         )
     }
 
-    fn raw_next_token(&mut self, advance: bool) -> Result<Option<(SourceSpan, usize, Token)>> {
+    fn raw_next_token(&mut self, advance: bool) -> Result<(SourceSpan, usize, Token)> {
         loop {
             let (span, size, token) = 'next_token_loop: loop {
                 while self.cur_col == self.cur_line.len() {
@@ -71,14 +70,17 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
                         }
                     } else if !self.eof {
                         self.eof = true;
+                        if self.cur_ln == 0 {
+                            self.cur_ln += 1;
+                        }
                         break 'next_token_loop (self.cur_span(0..0), 0, Token::Newline);
                     } else {
-                        return Ok(None);
+                        break 'next_token_loop (self.cur_span(0..0), 0, Token::Eof);
                     }
                 }
 
                 break match self.state.parse_token(&self.cur_line[self.cur_col..]) {
-                    Ok(Some((range, size, token))) => {
+                    Ok((range, size, token)) => {
                         let span = self.cur_span(range);
                         if advance {
                             self.cur_col += size;
@@ -101,7 +103,7 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
                 _ => self.last_was_newline = false,
             }
 
-            return Ok(Some((span, size, token)));
+            return Ok((span, size, token));
         }
     }
 
@@ -110,19 +112,17 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
         while_parsing: &'static str,
         want_token: Token<'static>,
     ) -> Result<SourceSpan> {
-        if let Some((span, got_token)) = self.next_token()? {
-            if want_token == got_token {
-                Ok(span)
-            } else {
-                Err(ParseError::UnexpectedToken {
-                    span,
-                    while_parsing,
-                    wanted: Wanted::Token(want_token),
-                    got_token: got_token.token_type_name(),
-                })
-            }
+        let (span, got_token) = self.next_token()?;
+
+        if want_token == got_token {
+            Ok(span)
         } else {
-            todo!("{want_token}")
+            Err(ParseError::UnexpectedToken {
+                span,
+                while_parsing,
+                wanted: Wanted::Token(want_token),
+                got_token: got_token.token_type_name(),
+            })
         }
     }
 
@@ -132,7 +132,7 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
         end_brace: Brace,
     ) -> Result<Option<(Value<SmolStr>, Value<T>)>> {
         match self.next_token()? {
-            Some((span, Token::Ident(key))) => {
+            (span, Token::Ident(key)) => {
                 let key = Value {
                     value: SmolStr::new(key),
                     span,
@@ -146,7 +146,7 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
 
                 Ok(Some((key, value)))
             }
-            Some((_, Token::BraceEnd(brace))) if brace == end_brace => Ok(None),
+            (_, Token::BraceEnd(brace)) if brace == end_brace => Ok(None),
             unk => todo!("{unk:#?}"),
         }
     }
@@ -174,36 +174,30 @@ mod tests {
         let f = &f;
         let mut p = LogixParser::new(&mut loader, f);
 
+        assert_eq!(p.next_token()?, (s(f, 1, 0, 5), Token::Ident("Hello")));
         assert_eq!(
             p.next_token()?,
-            Some((s(f, 1, 0, 5), Token::Ident("Hello")))
+            (s(f, 1, 6, 1), Token::BraceStart(Brace::Curly))
         );
+        assert_eq!(p.next_token()?, (s(f, 1, 8, 5), Token::Ident("world")));
+        assert_eq!(p.next_token()?, (s(f, 1, 13, 1), Token::Colon));
         assert_eq!(
             p.next_token()?,
-            Some((s(f, 1, 6, 1), Token::BraceStart(Brace::Curly)))
-        );
-        assert_eq!(
-            p.next_token()?,
-            Some((s(f, 1, 8, 5), Token::Ident("world")))
-        );
-        assert_eq!(p.next_token()?, Some((s(f, 1, 13, 1), Token::Colon)));
-        assert_eq!(
-            p.next_token()?,
-            Some((
+            (
                 s(f, 1, 16, 3),
                 Token::LitStrChunk {
                     chunk: "!!!",
                     last: true
                 }
-            ))
+            )
         );
         assert_eq!(
             p.next_token()?,
-            Some((s(f, 1, 21, 1), Token::BraceEnd(Brace::Curly)))
+            (s(f, 1, 21, 1), Token::BraceEnd(Brace::Curly))
         );
 
-        assert_eq!(p.next_token()?, Some((s(f, 1, 22, 0), Token::Newline)));
-        assert_eq!(p.next_token()?, None);
+        assert_eq!(p.next_token()?, (s(f, 1, 22, 0), Token::Newline));
+        assert_eq!(p.next_token()?, (s(f, 1, 22, 0), Token::Eof));
         Ok(())
     }
 }

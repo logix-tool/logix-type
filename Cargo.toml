@@ -22,6 +22,7 @@ smol_str = "0.2.0"
 thiserror = "1.0.49"
 
 [dev-dependencies]
+strip-ansi-escapes = "0.2.0"
 tempfile = "3.8.0"
 
 [workspace]

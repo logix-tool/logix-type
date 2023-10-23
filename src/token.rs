@@ -27,6 +27,7 @@ pub enum Token<'a> {
     Comma,
     Newline,
     CommentChunk { chunk: &'a str, last: bool },
+    Eof,
 }
 impl<'a> Token<'a> {
     pub fn token_type_name(&self) -> &'static str {
@@ -37,6 +38,7 @@ impl<'a> Token<'a> {
             Self::Comma => "`,`",
             Self::Newline => "newline",
             Self::CommentChunk { .. } => "comment",
+            Self::Eof => "end of file",
             unk => todo!("{unk:?}"),
         }
     }
@@ -69,13 +71,13 @@ impl TokenState {
     pub fn parse_token<'a>(
         &mut self,
         buf: &'a [u8],
-    ) -> std::result::Result<Option<(Range<usize>, usize, Token<'a>)>, TokenError> {
+    ) -> std::result::Result<(Range<usize>, usize, Token<'a>), TokenError> {
         let mut it = buf.char_indices();
 
         loop {
             match self {
                 Self::Normal => {
-                    return Ok(Some(match it.next() {
+                    return Ok(match it.next() {
                         Some((start, _, 'a'..='z' | 'A'..='Z' | '_')) => {
                             if let Some((end, _, _)) = it.find(
                                 |(_, _, c)| !matches!(c, 'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-'),
@@ -128,7 +130,7 @@ impl TokenState {
                         Some((_, _, ' ')) => continue,
                         Some(unk) => todo!("{unk:?}"),
                         None => todo!(),
-                    }));
+                    });
                 }
                 Self::LitStr => {
                     let start = buf.len() - it.as_bytes().len();
@@ -139,7 +141,7 @@ impl TokenState {
                             b'"' => {
                                 let data = &buf[start..end];
                                 *self = Self::Normal;
-                                return Ok(Some((
+                                return Ok((
                                     start..end,
                                     end + 1,
                                     Token::LitStrChunk {
@@ -147,7 +149,7 @@ impl TokenState {
                                             .map_err(|_| TokenError::LitStrNotUtf8)?,
                                         last: true,
                                     },
-                                )));
+                                ));
                             }
                             b'\\' => todo!(),
                             unk => unreachable!("{unk:?} is not in byteset"),
@@ -169,14 +171,14 @@ impl TokenState {
                             Some(b"*/") if *level == 0 => {
                                 cur += off;
                                 *self = Self::Normal;
-                                return Ok(Some((
+                                return Ok((
                                     start..cur,
                                     cur + 2,
                                     Token::CommentChunk {
                                         chunk: std::str::from_utf8(&buf[start..cur]).unwrap(),
                                         last: true,
                                     },
-                                )));
+                                ));
                             }
                             Some(b"*/") => {
                                 *level -= 1;
@@ -189,14 +191,14 @@ impl TokenState {
                     }
 
                     // Need to look at the next line
-                    return Ok(Some((
+                    return Ok((
                         start..buf.len(),
                         buf.len(),
                         Token::CommentChunk {
                             chunk: std::str::from_utf8(it.as_bytes()).unwrap(),
                             last: false,
                         },
-                    )));
+                    ));
                 }
             }
         }

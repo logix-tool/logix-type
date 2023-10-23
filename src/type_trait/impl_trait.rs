@@ -14,7 +14,7 @@ macro_rules! impl_for_str {
 
             fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<Self>> {
                 Ok(match p.next_token()? {
-                    Some((span, Token::LitStrChunk { chunk, last: true })) => Value {
+                    (span, Token::LitStrChunk { chunk, last: true }) => Value {
                         value: <$type>::from(chunk),
                         span,
                     },
@@ -38,7 +38,7 @@ macro_rules! impl_for_int {
 
             fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<Self>> {
                 Ok(match p.next_token()? {
-                    Some((span, Token::LitNumber(num))) => Value {
+                    (span, Token::LitNumber(num)) => Value {
                         value: num.parse().unwrap(), // TODO(2023.10): Return a sensible error
                         span,
                     },
