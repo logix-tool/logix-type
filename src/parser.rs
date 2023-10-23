@@ -19,6 +19,7 @@ pub struct LogixParser<'fs, 'f, FS: LogixVfs> {
     cur_ln: usize,
     state: TokenState,
     eof: bool,
+    last_was_newline: bool,
 }
 
 impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
@@ -32,6 +33,7 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
             cur_ln: 0,
             state: TokenState::Normal,
             eof: false,
+            last_was_newline: false,
         }
     }
 
@@ -56,37 +58,50 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
     }
 
     fn raw_next_token(&mut self, advance: bool) -> Result<Option<(SourceSpan, usize, Token)>> {
-        'try_again: loop {
-            while self.cur_col == self.cur_line.len() {
-                if let Some(line) = self.lines.next() {
-                    let ret = (self.cur_span(0..0), 0, Token::Newline);
-                    self.cur_line = line;
-                    self.cur_col = 0;
-                    self.cur_ln += 1;
-                    if self.cur_ln != 1 {
-                        return Ok(Some(ret));
+        loop {
+            let (span, size, token) = 'next_token_loop: loop {
+                while self.cur_col == self.cur_line.len() {
+                    if let Some(line) = self.lines.next() {
+                        let ret = (self.cur_span(0..0), 0, Token::Newline);
+                        self.cur_line = line;
+                        self.cur_col = 0;
+                        self.cur_ln += 1;
+                        if self.cur_ln != 1 {
+                            break 'next_token_loop ret;
+                        }
+                    } else if !self.eof {
+                        self.eof = true;
+                        break 'next_token_loop (self.cur_span(0..0), 0, Token::Newline);
+                    } else {
+                        return Ok(None);
                     }
-                } else if !self.eof {
-                    self.eof = true;
-                    return Ok(Some((self.cur_span(0..0), 0, Token::Newline)));
-                } else {
-                    return Ok(None);
                 }
+
+                break match self.state.parse_token(&self.cur_line[self.cur_col..]) {
+                    Ok(Some((range, size, token))) => {
+                        let span = self.cur_span(range);
+                        if advance {
+                            self.cur_col += size;
+                        }
+
+                        (span, size, token)
+                    }
+                    unk => todo!("{unk:?}"),
+                };
+            };
+
+            match token {
+                Token::CommentChunk { .. } => continue,
+                Token::Newline => {
+                    if self.last_was_newline {
+                        continue;
+                    }
+                    self.last_was_newline = true;
+                }
+                _ => self.last_was_newline = false,
             }
 
-            return match self.state.parse_token(&self.cur_line[self.cur_col..]) {
-                Ok(Some((range, size, token))) => {
-                    let span = self.cur_span(range);
-                    if advance {
-                        self.cur_col += size;
-                    }
-                    if matches!(token, Token::LineComment(..)) {
-                        continue 'try_again;
-                    }
-                    Ok(Some((span, size, token)))
-                }
-                unk => todo!("{unk:?}"),
-            };
+            return Ok(Some((span, size, token)));
         }
     }
 

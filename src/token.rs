@@ -26,7 +26,7 @@ pub enum Token<'a> {
     Colon,
     Comma,
     Newline,
-    LineComment(&'a str),
+    CommentChunk { chunk: &'a str, last: bool },
 }
 impl<'a> Token<'a> {
     pub fn token_type_name(&self) -> &'static str {
@@ -35,7 +35,8 @@ impl<'a> Token<'a> {
             Self::LitStrChunk { .. } => "string literal",
             Self::BraceEnd(Brace::Curly) => "`}`",
             Self::Comma => "`,`",
-            Self::LineComment(_) => "line comment",
+            Self::Newline => "newline",
+            Self::CommentChunk { .. } => "comment",
             unk => todo!("{unk:?}"),
         }
     }
@@ -61,6 +62,7 @@ pub enum TokenError {
 pub(crate) enum TokenState {
     Normal,
     LitStr,
+    Comment(usize),
 }
 
 impl TokenState {
@@ -104,7 +106,11 @@ impl TokenState {
                         Some((start, end, '/')) => {
                             if let Some(comment) = it.as_bytes().strip_prefix(b"/") {
                                 let end = end + comment.len() + 1;
-                                (start..end, end, Token::LineComment(std::str::from_utf8(comment).unwrap()))
+                                (start..end, end, Token::CommentChunk { chunk: std::str::from_utf8(comment).unwrap(), last: true })
+                            } else if let Some(comment) = it.as_bytes().strip_prefix(b"*") {
+                                it.next();
+                                *self = Self::Comment(0);
+                                continue;
                             } else {
                                 todo!()
                             }
@@ -149,6 +155,48 @@ impl TokenState {
                     } else {
                         todo!()
                     }
+                }
+                Self::Comment(level) => {
+                    let start = buf.len() - it.as_bytes().len();
+                    let mut cur = start;
+
+                    while let Some(off) = buf[cur..].find_byteset(b"/*") {
+                        match buf.get(cur + off..cur + off + 2) {
+                            Some(b"/*") => {
+                                *level += 1;
+                                cur += off + 2;
+                            }
+                            Some(b"*/") if *level == 0 => {
+                                cur += off;
+                                *self = Self::Normal;
+                                return Ok(Some((
+                                    start..cur,
+                                    cur + 2,
+                                    Token::CommentChunk {
+                                        chunk: std::str::from_utf8(&buf[start..cur]).unwrap(),
+                                        last: true,
+                                    },
+                                )));
+                            }
+                            Some(b"*/") => {
+                                *level -= 1;
+                                cur += off + 2;
+                            }
+                            _ => {
+                                cur += off + 1;
+                            }
+                        }
+                    }
+
+                    // Need to look at the next line
+                    return Ok(Some((
+                        start..buf.len(),
+                        buf.len(),
+                        Token::CommentChunk {
+                            chunk: std::str::from_utf8(it.as_bytes()).unwrap(),
+                            last: false,
+                        },
+                    )));
                 }
             }
         }
