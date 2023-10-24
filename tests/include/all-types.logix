@@ -49,4 +49,12 @@ Root {
     key11: UnnamedNode("Hi-ho, space-time!", 632)
     key12: UnnamedNode("Bonjour, infinity!", 2471)
   }
+  txt_str: ##txt"
+    Good day there mister!
+
+    This text is quite long, and contains more than two paragraphs. It follows similar wrapping rules as
+    markdown, so a single line-break is only used to make the paragraph easier to read.
+
+    The prefix is also removed and so is the first and last newline
+    "##
 }

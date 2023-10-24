@@ -1,6 +1,6 @@
 use super::{
     Brace, LogixParser, LogixType, LogixTypeDescriptor, LogixValueDescriptor, LogixVfs, Map,
-    ParseError, Result, Str, Token, Value, Wanted, Warn,
+    ParseError, Result, Str, StrTag, Token, Value, Wanted, Warn,
 };
 
 macro_rules! impl_for_str {
@@ -14,11 +14,28 @@ macro_rules! impl_for_str {
 
             fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<Self>> {
                 Ok(match p.next_token()? {
-                    (span, Token::LitStrChunk { chunk, last: true }) => Value {
+                    (span, Token::LitStr(chunk)) => Value {
                         value: <$type>::from(chunk),
                         span,
                     },
-                    (_, Token::LitStrChunk { chunk: _, last: false }) => todo!(),
+                    (span, Token::TaggedStr(StrTag::Txt, chunk)) => {
+                        let mut value = String::new();
+                        let tmp = textwrap::dedent(&chunk);
+                        for line in tmp.split("\n\n") {
+                            dbg!(line);
+                            for (i, line) in line.lines().enumerate() {
+                                if i != 0 {
+                                    value.push(' ');
+                                }
+                                value.push_str(line);
+                            }
+                            value.push('\n');
+                        }
+                        Value {
+                            value: <$type>::from(value),
+                            span,
+                        }
+                    }
                     (span, token) => return Err(ParseError::UnexpectedToken {
                         span,
                         while_parsing: "string",

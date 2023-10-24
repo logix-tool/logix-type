@@ -20,6 +20,7 @@ pub struct LogixParser<'fs, 'f, FS: LogixVfs> {
     state: TokenState,
     eof: bool,
     last_was_newline: bool,
+    tmp_buf: String,
 }
 
 impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
@@ -34,6 +35,7 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
             state: TokenState::Normal,
             eof: false,
             last_was_newline: true,
+            tmp_buf: String::new(),
         }
     }
 
@@ -57,8 +59,11 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
     }
 
     fn raw_next_token(&mut self, advance: bool) -> Result<(SourceSpan, usize, Token)> {
+        let mut str_type = None;
+        self.tmp_buf.clear();
+
         loop {
-            let (span, size, token) = 'next_token_loop: loop {
+            let (span, size, mut token) = 'next_token_loop: loop {
                 while self.cur_col == self.cur_line.len() {
                     if let Some(line) = self.lines.next() {
                         let ret = (self.cur_span(0..0), 0, Token::Newline);
@@ -95,10 +100,30 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
             match token {
                 Token::CommentChunk { .. } => continue,
                 Token::Newline => {
-                    if self.last_was_newline {
+                    if str_type.is_some() {
+                        continue;
+                    } else if self.last_was_newline {
                         continue;
                     }
                     self.last_was_newline = true;
+                }
+                Token::TaggedStrChunk { tag, chunk, last } => {
+                    let first = if str_type.is_none() {
+                        str_type = Some(tag);
+                        true
+                    } else {
+                        assert_eq!(Some(tag), str_type);
+                        false
+                    };
+                    self.tmp_buf.push_str(chunk);
+                    if !last {
+                        if !first {
+                            self.tmp_buf.push('\n');
+                        }
+                        continue;
+                    }
+
+                    token = Token::TaggedStr(tag, &self.tmp_buf);
                 }
                 _ => self.last_was_newline = false,
             }
@@ -181,16 +206,7 @@ mod tests {
         );
         assert_eq!(p.next_token()?, (s(f, 1, 8, 5), Token::Ident("world")));
         assert_eq!(p.next_token()?, (s(f, 1, 13, 1), Token::Colon));
-        assert_eq!(
-            p.next_token()?,
-            (
-                s(f, 1, 16, 3),
-                Token::LitStrChunk {
-                    chunk: "!!!",
-                    last: true
-                }
-            )
-        );
+        assert_eq!(p.next_token()?, (s(f, 1, 16, 3), Token::LitStr("!!!")));
         assert_eq!(
             p.next_token()?,
             (s(f, 1, 21, 1), Token::BraceEnd(Brace::Curly))

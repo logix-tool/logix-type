@@ -17,6 +17,7 @@ struct Root {
     type_map_str: Map<String>,
     type_map_named_struct: Map<NamedNode>,
     type_map_unnamed_struct: Map<UnnamedNode>,
+    txt_str: String,
 }
 
 #[derive(logix_type::LogixType, PartialEq, Debug)]
@@ -95,6 +96,14 @@ fn expected_root() -> Root {
         ]
         .into_iter()
         .collect(),
+        txt_str: concat!(
+            "Good day there mister!",
+            "\n",
+            "This text is quite long, and contains more than two paragraphs. It follows similar wrapping rules as",
+            "markdown, so a single line-break is only used to make the paragraph easier to read.",
+            "\n",
+            "The prefix is also removed and so is the first and last newline",
+        ).into(),
     }
 }
 

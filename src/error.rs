@@ -219,7 +219,7 @@ fn write_error(
                 "",
                 "|".bright_blue().bold(),
                 "",
-                "^".repeat(span.len()).bright_red().bold(),
+                "^".repeat(span.len().max(1)).bright_red().bold(),
                 expected.bright_red().bold(),
             )?;
         }

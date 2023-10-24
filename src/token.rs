@@ -2,6 +2,23 @@ use std::{fmt, ops::Range};
 
 use bstr::ByteSlice;
 
+use crate::Str;
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum StrTag {
+    Txt,
+}
+
+impl StrTag {
+    fn from_prefix(buf: &[u8]) -> Option<(usize, Self)> {
+        if buf.starts_with(b"txt\"") {
+            Some((4, Self::Txt))
+        } else {
+            None
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum Brace {
     /// Curly braces `{}`
@@ -19,21 +36,31 @@ pub enum Brace {
 #[derive(Debug, PartialEq, Eq)]
 pub enum Token<'a> {
     Ident(&'a str),
-    LitStrChunk { chunk: &'a str, last: bool },
+    LitStr(&'a str),
+    TaggedStr(StrTag, &'a str),
+    TaggedStrChunk {
+        tag: StrTag,
+        chunk: &'a str,
+        last: bool,
+    },
     LitNumber(&'a str),
     BraceStart(Brace),
     BraceEnd(Brace),
     Colon,
     Comma,
     Newline,
-    CommentChunk { chunk: &'a str, last: bool },
+    CommentChunk {
+        chunk: &'a str,
+        last: bool,
+    },
     Eof,
 }
 impl<'a> Token<'a> {
     pub fn token_type_name(&self) -> &'static str {
         match self {
             Self::Ident(_) => "identifier",
-            //Self::LitStrChunk { .. } => "string literal",
+            Self::LitStr(_) => "string",
+            Self::TaggedStr(_, _) => "string",
             Self::BraceEnd(Brace::Paren) => "`)`",
             Self::BraceEnd(Brace::Curly) => "`}`",
             Self::Comma => "`,`",
@@ -49,7 +76,9 @@ impl<'a> fmt::Display for Token<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Ident(value) => write!(f, "`{value}`"),
-            Self::LitStrChunk { .. } => todo!(),
+            Self::LitStr(..) => todo!(),
+            Self::TaggedStr(..) => todo!(),
+            Self::TaggedStrChunk { .. } => todo!(),
             Self::LitNumber(..) => todo!(),
             Self::CommentChunk { .. } => todo!(),
             Self::BraceEnd(..)
@@ -72,6 +101,7 @@ pub(crate) enum TokenState {
     Normal,
     LitStr,
     Comment(usize),
+    TaggedStr(Str, StrTag),
 }
 
 impl TokenState {
@@ -134,6 +164,37 @@ impl TokenState {
                             *self = TokenState::LitStr;
                             continue;
                         }
+                        Some((pfx_start, _, '#')) => {
+                            match it.find(|b| b.2 != '#') {
+                                Some((pfx_end, _, 'a'..='z' | 'A'..='Z' | '_')) => {
+                                    if let Some((len, tag)) = StrTag::from_prefix(&buf[pfx_end..]) {
+                                        it.by_ref().take(len).count();
+                                        *self = TokenState::TaggedStr(
+                                            format!("\"{}", std::str::from_utf8(&buf[pfx_start..pfx_end]).unwrap()).into(),
+                                            tag,
+                                        );
+                                        continue;
+                                    } else {
+                                        todo!()
+                                    }
+                                }
+                                unk => todo!("{unk:?}"),
+                            }
+                            /*
+                            if let Some((end, _, _)) = it.find(
+                                |(_, _, c)| !matches!(c, 'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-'),
+                            ) {
+                                match buf[end] {
+                                    b'"' => {
+                                    }
+                                    unk => todo!("{unk:?}"),
+                                }
+                            } else {
+                                todo!()
+                            }
+                            continue;
+                            */
+                        }
                         Some((_, _, ' ')) => continue,
                         Some(unk) => todo!("{unk:?}"),
                         None => todo!(),
@@ -151,11 +212,10 @@ impl TokenState {
                                 return Ok((
                                     start..end,
                                     end + 1,
-                                    Token::LitStrChunk {
-                                        chunk: std::str::from_utf8(data)
+                                    Token::LitStr(
+                                        std::str::from_utf8(data)
                                             .map_err(|_| TokenError::LitStrNotUtf8)?,
-                                        last: true,
-                                    },
+                                    ),
                                 ));
                             }
                             b'\\' => todo!(),
@@ -200,12 +260,39 @@ impl TokenState {
                     // Need to look at the next line
                     return Ok((
                         start..buf.len(),
-                        buf.len(),
+                        buf.len(), // TODO(2023.10): Not sure this is correct
                         Token::CommentChunk {
                             chunk: std::str::from_utf8(it.as_bytes()).unwrap(),
                             last: false,
                         },
                     ));
+                }
+                &mut Self::TaggedStr(ref suff, tag) => {
+                    let start = buf.len() - it.as_bytes().len();
+
+                    if let Some(end) = it.as_bytes().find(suff.as_bytes()) {
+                        let suff_len = suff.len();
+                        *self = Self::Normal;
+                        return Ok((
+                            start..start + end,
+                            start + end + suff_len,
+                            Token::TaggedStrChunk {
+                                tag,
+                                chunk: std::str::from_utf8(&buf[start..end]).unwrap(),
+                                last: true,
+                            },
+                        ));
+                    } else {
+                        return Ok((
+                            start..buf.len(),
+                            buf.len(),
+                            Token::TaggedStrChunk {
+                                tag,
+                                chunk: std::str::from_utf8(&buf[start..]).unwrap(),
+                                last: false,
+                            },
+                        ));
+                    }
                 }
             }
         }

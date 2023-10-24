@@ -3,7 +3,7 @@ mod impl_trait;
 pub use crate::{
     error::{ParseError, Result, SourceSpan, Wanted, Warn},
     parser::LogixParser,
-    token::{Brace, Token},
+    token::{Brace, StrTag, Token},
     Map, Str,
 };
 pub use logix_vfs::LogixVfs;
