@@ -4,7 +4,12 @@ use bstr::ByteSlice;
 use indexmap::IndexMap;
 use logix_vfs::LogixVfs;
 
-use crate::{error::ParseError, LogixType, __private::LogixParser, token::Token};
+use crate::{
+    error::{ParseError, Wanted},
+    LogixType,
+    __private::LogixParser,
+    token::Token,
+};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct FileId {
@@ -89,7 +94,12 @@ impl<FS: LogixVfs> LogixLoader<FS> {
 
         match p.next_token()? {
             (_, Token::Eof) => Ok(ret.value),
-            unk => todo!("{unk:?}"),
+            (span, token) => Err(ParseError::UnexpectedToken {
+                span,
+                while_parsing: T::DESCRIPTOR.name,
+                got_token: token.token_type_name(),
+                wanted: Wanted::Token(Token::Eof),
+            }),
         }
     }
 }

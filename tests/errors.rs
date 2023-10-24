@@ -78,6 +78,44 @@ fn empty_file() {
 }
 
 #[test]
+fn two_types() {
+    let mut l = Loader::init().with_file(
+        "test.logix",
+        &b"Struct {\n  aaa: 60\n  bbbb: \"red\"\n}\n".repeat(2),
+    );
+    let e = l.loader.load_file::<Struct>("test.logix").unwrap_err();
+
+    assert_eq!(
+        e,
+        ParseError::UnexpectedToken {
+            span: l.span("test.logix", 5, 0, 6),
+            while_parsing: "Struct",
+            wanted: Wanted::Token(Token::Eof),
+            got_token: "identifier",
+        }
+    );
+
+    assert_eq!(
+        debval(&e),
+        concat!(
+            "\n",
+            "error: Unexpected identifier while parsing `Struct`\n",
+            "   ---> test.logix:5:0\n",
+            "    |\n",
+            "  4 | }\n",
+            "  5 | Struct {\n",
+            "    | ^^^^^^ Expected end of file\n",
+            "  6 |   aaa: 60\n",
+        )
+    );
+
+    assert_eq!(
+        disval(&e),
+        "Unexpected identifier while parsing `Struct`, expected end of file in test.logix:5:0"
+    );
+}
+
+#[test]
 fn unclosed_curly_brace() {
     let mut l = Loader::init().with_file("test.logix", b"Struct {");
     let e = l.loader.load_file::<Struct>("test.logix").unwrap_err();
@@ -137,13 +175,13 @@ fn no_newline() {
             "   ---> test.logix:1:8\n",
             "    |\n",
             "  1 | Struct {}\n",
-            "    |         ^ Expected `<newline>`\n",
+            "    |         ^ Expected newline\n",
         )
     );
 
     assert_eq!(
         disval(&e),
-        "Unexpected `}` while parsing `Struct`, expected `<newline>` in test.logix:1:8"
+        "Unexpected `}` while parsing `Struct`, expected newline in test.logix:1:8"
     );
 }
 

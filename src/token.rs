@@ -48,9 +48,15 @@ impl<'a> fmt::Display for Token<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Ident(value) => write!(f, "`{value}`"),
-            Self::BraceEnd(Brace::Curly) => write!(f, "`}}`"),
-            Self::Newline => write!(f, "`<newline>`"),
-            unk => todo!("{unk:?}"),
+            Self::LitStrChunk { .. } => todo!(),
+            Self::LitNumber(..) => todo!(),
+            Self::CommentChunk { .. } => todo!(),
+            Self::BraceEnd(..)
+            | Self::BraceStart(..)
+            | Self::Colon
+            | Self::Comma
+            | Self::Newline
+            | Self::Eof => write!(f, "{}", self.token_type_name()),
         }
     }
 }
