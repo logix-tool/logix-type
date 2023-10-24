@@ -30,6 +30,24 @@ impl Loader {
     fn span(&self, path: &str, line: usize, col: usize, len: usize) -> SourceSpan {
         SourceSpan::new_for_test(&self.loader, path, line, col, len)
     }
+
+    fn parse_file<T: LogixType + std::fmt::Debug>(&mut self, name: &str) -> ParseError {
+        println!("\n\nParsing {}\n", T::DESCRIPTOR.name);
+
+        let e = self.loader.load_file::<T>(name).unwrap_err();
+
+        println!("**** DISPLAY START ****\n{e}\n**** DISPLAY END ******\n");
+        println!("*** DEBUG START ******\n{e:?}\n**** DEBUG END ********\n");
+        e
+    }
+
+    fn parse_struct(&mut self, name: &str) -> ParseError {
+        self.parse_file::<Struct>(name)
+    }
+
+    fn parse_tuple(&mut self, name: &str) -> ParseError {
+        self.parse_file::<Tuple>(name)
+    }
 }
 
 #[derive(LogixType, PartialEq, Debug)]
@@ -37,6 +55,9 @@ struct Struct {
     aaa: u32,
     bbbb: String,
 }
+
+#[derive(LogixType, PartialEq, Debug)]
+struct Tuple(u32, String);
 
 fn debval(s: &impl fmt::Debug) -> String {
     strip_ansi_escapes::strip_str(format!("{s:?}"))
@@ -49,7 +70,7 @@ fn disval(s: &impl fmt::Display) -> String {
 #[test]
 fn empty_file() {
     let mut l = Loader::init().with_file("test.logix", b"");
-    let e = l.loader.load_file::<Struct>("test.logix").unwrap_err();
+    let e = l.parse_struct("test.logix");
 
     assert_eq!(
         e,
@@ -83,7 +104,7 @@ fn two_types() {
         "test.logix",
         &b"Struct {\n  aaa: 60\n  bbbb: \"red\"\n}\n".repeat(2),
     );
-    let e = l.loader.load_file::<Struct>("test.logix").unwrap_err();
+    let e = l.parse_struct("test.logix");
 
     assert_eq!(
         e,
@@ -118,7 +139,7 @@ fn two_types() {
 #[test]
 fn unclosed_curly_brace() {
     let mut l = Loader::init().with_file("test.logix", b"Struct {");
-    let e = l.loader.load_file::<Struct>("test.logix").unwrap_err();
+    let e = l.parse_struct("test.logix");
 
     assert_eq!(
         e,
@@ -155,7 +176,7 @@ fn unclosed_curly_brace() {
 #[test]
 fn no_newline() {
     let mut l = Loader::init().with_file("test.logix", b"Struct {}");
-    let e = l.loader.load_file::<Struct>("test.logix").unwrap_err();
+    let e = l.parse_struct("test.logix");
 
     assert_eq!(
         e,
@@ -188,11 +209,11 @@ fn no_newline() {
 #[test]
 fn no_members() {
     let mut l = Loader::init().with_file("test.logix", b"Struct {\n}");
-    let e = l.loader.load_file::<Struct>("test.logix").unwrap_err();
+    let e = l.parse_struct("test.logix");
 
     assert_eq!(
         e,
-        ParseError::MissingMember {
+        ParseError::MissingStructMember {
             span: l.span("test.logix", 2, 0, 1),
             type_name: "Struct",
             member: "aaa",
@@ -203,7 +224,7 @@ fn no_members() {
         debval(&e),
         concat!(
             "\n",
-            "error: Missing member while parsing `Struct`\n",
+            "error: Missing struct member while parsing `Struct`\n",
             "   ---> test.logix:2:0\n",
             "    |\n",
             "  1 | Struct {\n",
@@ -214,18 +235,18 @@ fn no_members() {
 
     assert_eq!(
         disval(&e),
-        "Missing member `aaa` while parsing `Struct` in test.logix:2:0"
+        "Missing struct member `aaa` while parsing `Struct` in test.logix:2:0"
     );
 }
 
 #[test]
 fn one_member_a() {
     let mut l = Loader::init().with_file("test.logix", b"Struct {\n  aaa: 10\n}");
-    let e = l.loader.load_file::<Struct>("test.logix").unwrap_err();
+    let e = l.parse_struct("test.logix");
 
     assert_eq!(
         e,
-        ParseError::MissingMember {
+        ParseError::MissingStructMember {
             span: l.span("test.logix", 3, 0, 1),
             type_name: "Struct",
             member: "bbbb",
@@ -236,7 +257,7 @@ fn one_member_a() {
         debval(&e),
         concat!(
             "\n",
-            "error: Missing member while parsing `Struct`\n",
+            "error: Missing struct member while parsing `Struct`\n",
             "   ---> test.logix:3:0\n",
             "    |\n",
             "  2 |   aaa: 10\n",
@@ -247,18 +268,18 @@ fn one_member_a() {
 
     assert_eq!(
         disval(&e),
-        "Missing member `bbbb` while parsing `Struct` in test.logix:3:0"
+        "Missing struct member `bbbb` while parsing `Struct` in test.logix:3:0"
     );
 }
 
 #[test]
 fn one_member_b() {
     let mut l = Loader::init().with_file("test.logix", b"Struct {\n  bbbb: \"yo\"\n}");
-    let e = l.loader.load_file::<Struct>("test.logix").unwrap_err();
+    let e = l.parse_struct("test.logix");
 
     assert_eq!(
         e,
-        ParseError::MissingMember {
+        ParseError::MissingStructMember {
             span: l.span("test.logix", 3, 0, 1),
             type_name: "Struct",
             member: "aaa",
@@ -269,7 +290,7 @@ fn one_member_b() {
         debval(&e),
         concat!(
             "\n",
-            "error: Missing member while parsing `Struct`\n",
+            "error: Missing struct member while parsing `Struct`\n",
             "   ---> test.logix:3:0\n",
             "    |\n",
             "  2 |   bbbb: \"yo\"\n",
@@ -280,18 +301,18 @@ fn one_member_b() {
 
     assert_eq!(
         disval(&e),
-        "Missing member `aaa` while parsing `Struct` in test.logix:3:0"
+        "Missing struct member `aaa` while parsing `Struct` in test.logix:3:0"
     );
 }
 
 #[test]
 fn duplicate_member() {
     let mut l = Loader::init().with_file("test.logix", b"Struct {\n  aaa: 20\n  aaa: 30\n}");
-    let e = l.loader.load_file::<Struct>("test.logix").unwrap_err();
+    let e = l.parse_struct("test.logix");
 
     assert_eq!(
         e,
-        ParseError::DuplicateMember {
+        ParseError::DuplicateStructMember {
             span: l.span("test.logix", 3, 2, 3),
             type_name: "Struct",
             member: "aaa",
@@ -302,7 +323,7 @@ fn duplicate_member() {
         debval(&e),
         concat!(
             "\n",
-            "error: Duplicate member while parsing `Struct`\n",
+            "error: Duplicate struct member while parsing `Struct`\n",
             "   ---> test.logix:3:2\n",
             "    |\n",
             "  2 |   aaa: 20\n",
@@ -314,6 +335,72 @@ fn duplicate_member() {
 
     assert_eq!(
         disval(&e),
-        "Duplicate member `aaa` while parsing `Struct` in test.logix:3:2"
+        "Duplicate struct member `aaa` while parsing `Struct` in test.logix:3:2"
+    );
+}
+
+#[test]
+fn one_member_tuple_want_comma() {
+    let mut l = Loader::init().with_file("test.logix", b"Tuple(10)");
+    let e = l.parse_tuple("test.logix");
+
+    assert_eq!(
+        e,
+        ParseError::UnexpectedToken {
+            span: l.span("test.logix", 1, 8, 1),
+            while_parsing: "Tuple",
+            got_token: "`)`",
+            wanted: Wanted::Token(Token::Comma),
+        }
+    );
+
+    assert_eq!(
+        debval(&e),
+        concat!(
+            "\n",
+            "error: Unexpected `)` while parsing `Tuple`\n",
+            "   ---> test.logix:1:8\n",
+            "    |\n",
+            "  1 | Tuple(10)\n",
+            "    |         ^ Expected `,`\n",
+        )
+    );
+
+    assert_eq!(
+        disval(&e),
+        "Unexpected `)` while parsing `Tuple`, expected `,` in test.logix:1:8"
+    );
+}
+
+#[test]
+fn one_member_tuple_want_litstr() {
+    let mut l = Loader::init().with_file("test.logix", b"Tuple(10, )");
+    let e = l.parse_tuple("test.logix");
+
+    assert_eq!(
+        e,
+        ParseError::UnexpectedToken {
+            span: l.span("test.logix", 1, 10, 1),
+            while_parsing: "string",
+            got_token: "`)`",
+            wanted: Wanted::LitStr,
+        }
+    );
+
+    assert_eq!(
+        debval(&e),
+        concat!(
+            "\n",
+            "error: Unexpected `)` while parsing `string`\n",
+            "   ---> test.logix:1:10\n",
+            "    |\n",
+            "  1 | Tuple(10, )\n",
+            "    |           ^ Expected string\n",
+        )
+    );
+
+    assert_eq!(
+        disval(&e),
+        "Unexpected `)` while parsing `string`, expected string in test.logix:1:10"
     );
 }

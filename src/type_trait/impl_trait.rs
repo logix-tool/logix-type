@@ -1,6 +1,6 @@
 use super::{
     Brace, LogixParser, LogixType, LogixTypeDescriptor, LogixValueDescriptor, LogixVfs, Map,
-    Result, Str, Token, Value, Warn,
+    ParseError, Result, Str, Token, Value, Wanted, Warn,
 };
 
 macro_rules! impl_for_str {
@@ -18,7 +18,13 @@ macro_rules! impl_for_str {
                         value: <$type>::from(chunk),
                         span,
                     },
-                    unk => todo!("{unk:#?}"),
+                    (_, Token::LitStrChunk { chunk: _, last: false }) => todo!(),
+                    (span, token) => return Err(ParseError::UnexpectedToken {
+                        span,
+                        while_parsing: "string",
+                        wanted: Wanted::LitStr,
+                        got_token: token.token_type_name(),
+                    }),
                 })
             }
         }

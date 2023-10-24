@@ -33,11 +33,12 @@ impl<'a> Token<'a> {
     pub fn token_type_name(&self) -> &'static str {
         match self {
             Self::Ident(_) => "identifier",
-            Self::LitStrChunk { .. } => "string literal",
+            //Self::LitStrChunk { .. } => "string literal",
+            Self::BraceEnd(Brace::Paren) => "`)`",
             Self::BraceEnd(Brace::Curly) => "`}`",
             Self::Comma => "`,`",
             Self::Newline => "newline",
-            Self::CommentChunk { .. } => "comment",
+            //Self::CommentChunk { .. } => "comment",
             Self::Eof => "end of file",
             unk => todo!("{unk:?}"),
         }

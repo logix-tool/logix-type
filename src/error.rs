@@ -80,6 +80,7 @@ impl fmt::Display for SourceSpan {
 pub enum Wanted {
     Token(Token<'static>),
     Tokens(&'static [Token<'static>]),
+    LitStr,
 }
 
 impl fmt::Display for Wanted {
@@ -98,6 +99,7 @@ impl fmt::Display for Wanted {
                 }
                 write!(f, ", or {last}")
             }
+            Self::LitStr => write!(f, "string"),
         }
     }
 }
@@ -110,15 +112,15 @@ pub enum ParseError {
     #[error("Warning treated as error: {0}")]
     Warning(Warn),
 
-    #[error("Missing member `{member}` while parsing `{type_name}` in {span}")]
-    MissingMember {
+    #[error("Missing struct member `{member}` while parsing `{type_name}` in {span}")]
+    MissingStructMember {
         span: SourceSpan,
         type_name: &'static str,
         member: &'static str,
     },
 
-    #[error("Duplicate member `{member}` while parsing `{type_name}` in {span}")]
-    DuplicateMember {
+    #[error("Duplicate struct member `{member}` while parsing `{type_name}` in {span}")]
+    DuplicateStructMember {
         span: SourceSpan,
         type_name: &'static str,
         member: &'static str,
@@ -147,23 +149,23 @@ impl fmt::Debug for ParseError {
         match self {
             Self::FsError(_) => todo!(),
             Self::Warning(_) => todo!(),
-            Self::MissingMember {
+            Self::MissingStructMember {
                 span,
                 type_name,
                 member,
             } => write_error(
                 f,
-                format_args!("Missing member while parsing `{type_name}`"),
+                format_args!("Missing struct member while parsing `{type_name}`"),
                 span,
                 format_args!("Expected `{member}`"),
             ),
-            Self::DuplicateMember {
+            Self::DuplicateStructMember {
                 span,
                 type_name,
                 member,
             } => write_error(
                 f,
-                format_args!("Duplicate member while parsing `{type_name}`"),
+                format_args!("Duplicate struct member while parsing `{type_name}`"),
                 span,
                 format_args!("Unexpected `{member}`"),
             ),

@@ -58,7 +58,7 @@ pub(crate) fn do_named(
         member_tmp_init.push(quote!(None));
         member_tmp_parse.push(quote!(
             if tmp.#fname.is_some() {
-                return Err(ParseError::DuplicateMember {
+                return Err(ParseError::DuplicateStructMember {
                     span,
                     type_name: #type_name_str,
                     member: #fname_str,
@@ -67,11 +67,13 @@ pub(crate) fn do_named(
             tmp.#fname = Some(<#ty as #cr::LogixType>::logix_parse(p)?.value)
         ));
         member_tmp_types.push(ty);
-        member_tmp_assign.push(quote!(tmp.#fname.ok_or_else(|| ParseError::MissingMember {
+        member_tmp_assign.push(
+            quote!(tmp.#fname.ok_or_else(|| ParseError::MissingStructMember {
                 span: curly_span.clone(),
                 type_name: #type_name_str,
                 member: #fname_str,
-            })?));
+            })?),
+        );
         member_names.push(fname);
         member_str_names.push(fname_str);
     }
@@ -180,18 +182,7 @@ pub(crate) fn do_unnamed(
                     #({
                         let value = #last_member_parse;
 
-                        match p.next_token()? {
-                            (_, Token::Comma) => {
-                                p.req_token(#type_name_str, Token::BraceEnd(Brace::Paren))?;
-                            },
-                            (_, Token::BraceEnd(Brace::Paren)) => {},
-                            (span, token) => return Err(ParseError::UnexpectedToken {
-                                span,
-                                while_parsing: #type_name_str,
-                                wanted: Wanted::Tokens(&[Token::Comma, Token::BraceEnd(Brace::Paren)]),
-                                got_token: token.token_type_name(),
-                            }),
-                        }
+                        p.req_token(#type_name_str, Token::BraceEnd(Brace::Paren))?;
 
                         value
                     },)*
