@@ -20,9 +20,8 @@ pub fn parse_basic<'a>(buf: &'a [u8], start: usize) -> ParseRes<'a> {
             b'\\' => {
                 tag = StrTag::Esc;
                 match buf.get(pos + 1) {
-                    Some(b't' | b'n' | b'r') => pos += 2,
-                    Some(b'u') => todo!("unicode"),
-                    Some(unk) => todo!("{unk:?}"),
+                    Some(b't' | b'n' | b'r' | b'u' | b'x' | b'\\' | b'"') => pos += 2,
+                    Some(unk) => todo!("{unk:?} ({:?})", char::from(*unk)),
                     None => todo!("unexpected end of file"),
                 }
             }

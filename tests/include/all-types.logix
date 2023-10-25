@@ -57,4 +57,5 @@ Root {
 
     The prefix is also removed and so is the first and last newline
     "##
+  esc_str: "LF: \n, Tab: \t, CR: \r, Unicode: \u{a4}, Backslash: \\, Quote: \", Hex: \x20"
 }
