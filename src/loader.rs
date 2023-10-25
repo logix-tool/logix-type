@@ -4,12 +4,7 @@ use bstr::ByteSlice;
 use indexmap::IndexMap;
 use logix_vfs::LogixVfs;
 
-use crate::{
-    error::{ParseError, Wanted},
-    parser::LogixParser,
-    token::Token,
-    type_trait::LogixType,
-};
+use crate::{error::ParseError, parser::LogixParser, token::Token, type_trait::LogixType};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct FileId {
@@ -94,16 +89,12 @@ impl<FS: LogixVfs> LogixLoader<FS> {
 
         let ret = T::logix_parse(&mut p)?;
 
-        p.req_token(T::DESCRIPTOR.name, Token::Newline)?;
+        // This will either skip any newlines and comments, or return EOF
+        p.req_newline(T::DESCRIPTOR.name)?;
 
-        match p.next_token()? {
-            (_, Token::Eof) => Ok(ret.value),
-            (span, token) => Err(ParseError::UnexpectedToken {
-                span,
-                while_parsing: T::DESCRIPTOR.name,
-                got_token: token.token_type_name(),
-                wanted: Wanted::Token(Token::Eof),
-            }),
-        }
+        // From now on EOF should always be returned
+        p.req_token(T::DESCRIPTOR.name, Token::Newline(true))?;
+
+        Ok(ret.value)
     }
 }

@@ -95,13 +95,13 @@ pub(crate) fn do_named(
                     };
 
                     let mut curly_span = p.req_token(#type_name_str, Token::Brace { start: true, brace: Brace::Curly })?;
-                    p.req_token(#type_name_str, Token::Newline)?;
+                    p.req_token(#type_name_str, Token::Newline(false))?;
                     'parse_members: loop {
                         match p.next_token()? {
                             #((span, Token::Ident(#member_str_names)) => {
                                 p.req_token(#type_name_str, Token::Delim(Delim::Colon))?;
                                 #member_tmp_parse;
-                                p.req_token(#type_name_str, Token::Newline)?;
+                                p.req_token(#type_name_str, Token::Newline(false))?;
                             })*
                             (span, Token::Brace { start: false, brace: Brace::Curly }) => {
                                 curly_span = span;

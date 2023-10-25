@@ -28,8 +28,6 @@ pub(crate) fn do_any(
         variant_names_str.push(shared.type_name_str);
     }
 
-    //println!("{}", variant_parsers[0]);
-
     (
         quote!(
             #cr::LogixValueDescriptor::Enum {

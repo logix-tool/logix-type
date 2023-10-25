@@ -1,6 +1,7 @@
 pub mod error;
 mod loader;
 mod parser;
+mod string;
 mod token;
 mod type_trait;
 

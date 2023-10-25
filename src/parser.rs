@@ -7,6 +7,7 @@ use crate::{
     type_trait::Value,
     LogixType,
 };
+use bstr::ByteSlice;
 use logix_vfs::LogixVfs;
 use smol_str::SmolStr;
 
@@ -33,10 +34,6 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
         }
     }
 
-    pub fn next_token(&mut self) -> Result<(SourceSpan, Token)> {
-        self.raw_next_token().map(|(span, _, token)| (span, token))
-    }
-
     pub fn warning(&self, warning: Warn) -> Result<()> {
         // TODO(2023.10): Make it possible to allow warnings
         Err(ParseError::Warning(warning))
@@ -51,81 +48,62 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
         )
     }
 
-    fn raw_next_token(&mut self) -> Result<(SourceSpan, usize, Token)> {
+    pub fn next_token(&mut self) -> Result<(SourceSpan, Token)> {
         if self.eof {
-            return Ok((self.cur_span(0..0), 0, Token::Eof));
+            return Ok((self.cur_span(0..0), Token::Newline(true)));
         }
 
         'outer: loop {
             let last_was_newline = std::mem::take(&mut self.last_was_newline);
 
-            if last_was_newline {
-                self.cur_ln += 1;
-                self.cur_col = 0;
-            }
-
             'ignore_token: loop {
                 let buf = &self.file.data()[self.cur_pos..];
+                let (span, token) = {
+                    let ParseRes {
+                        len,
+                        range,
+                        lines,
+                        token,
+                    } = parse_token(buf);
+                    let span = self.cur_span(range);
 
-                return match dbg!(parse_token(buf)) {
-                    ParseRes {
-                        len,
-                        range,
-                        lines: 0,
-                        token:
-                            Ok(
-                                token @ (Token::Ident(..)
-                                | Token::Brace { .. }
-                                | Token::Delim(..)
-                                | Token::Literal(..)),
-                            ),
-                    } => {
-                        let span = self.cur_span(range);
+                    self.cur_pos += len;
+                    if lines > 0 {
+                        debug_assert_ne!(len, 0);
+
+                        self.cur_ln += lines;
+                        if len == 1 {
+                            self.cur_col = 0;
+                        } else {
+                            self.cur_col = self.file.data()[..self.cur_pos]
+                                .lines()
+                                .rev()
+                                .next()
+                                .unwrap()
+                                .len();
+                        }
+                    } else {
                         self.cur_col += len;
-                        self.cur_pos += len;
-                        Ok((span, len, token))
                     }
-                    ParseRes {
-                        len,
-                        range,
-                        lines: 0,
-                        token: Ok(Token::Newline),
-                    } => {
-                        let span = self.cur_span(range);
-                        self.cur_col += len;
-                        self.cur_pos += len;
+                    (span, token)
+                };
+
+                return match token {
+                    Ok(
+                        token @ (Token::Ident(..)
+                        | Token::Brace { .. }
+                        | Token::Delim(..)
+                        | Token::Literal(..)),
+                    ) => Ok((span, token)),
+                    Ok(Token::Newline(eof)) => {
                         self.last_was_newline = true;
-                        if last_was_newline {
+                        if !eof && last_was_newline {
                             continue 'outer;
                         }
-                        Ok((span, len, Token::Newline))
+                        Ok((span, Token::Newline(eof)))
                     }
-                    ParseRes {
-                        len,
-                        range: _,
-                        lines: 0,
-                        token: Ok(Token::Comment(_)),
-                    } => {
-                        self.cur_col += len;
-                        self.cur_pos += len;
+                    Ok(Token::Comment(_)) => {
                         continue 'ignore_token;
-                    }
-                    ParseRes {
-                        len,
-                        range,
-                        lines: 0,
-                        token: Ok(Token::Eof),
-                    } => {
-                        let token = if self.file.data().ends_with(b"\n") {
-                            Token::Eof
-                        } else {
-                            Token::Newline
-                        };
-                        self.eof = true;
-                        let span = self.cur_span(range);
-                        self.cur_col += len;
-                        self.cur_pos += len;
-                        Ok((span, len, token))
                     }
                     unk => todo!("{unk:#?}"),
                 };
@@ -168,7 +146,7 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
 
                 let value = T::logix_parse(self)?;
 
-                self.req_token(while_parsing, Token::Newline)?;
+                self.req_newline(while_parsing)?;
 
                 Ok(Some((key, value)))
             }
@@ -180,6 +158,18 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
                 },
             ) if brace == end_brace => Ok(None),
             unk => todo!("{unk:#?}"),
+        }
+    }
+
+    pub fn req_newline(&mut self, while_parsing: &'static str) -> Result<()> {
+        match self.next_token()? {
+            (_, Token::Newline(..)) => Ok(()),
+            (span, got_token) => Err(ParseError::UnexpectedToken {
+                span,
+                while_parsing,
+                wanted: Wanted::Token(Token::Newline(false)),
+                got_token: got_token.token_type_name(),
+            }),
         }
     }
 }
@@ -240,8 +230,7 @@ mod tests {
             )
         );
 
-        assert_eq!(p.next_token()?, (s(f, 1, 22, 0), Token::Newline));
-        assert_eq!(p.next_token()?, (s(f, 1, 22, 0), Token::Eof));
+        assert_eq!(p.next_token()?, (s(f, 1, 22, 0), Token::Newline(true)));
         Ok(())
     }
 }

@@ -14,25 +14,19 @@ macro_rules! impl_for_str {
 
             fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<Self>> {
                 Ok(match p.next_token()? {
-                    (span, Token::Literal(Literal::Str(StrTag::Esc, value))) => Value {
+                    (span, Token::Literal(Literal::Str(StrTag::Raw, value))) => Value {
                         value: <$type>::from(value),
                         span,
                     },
-                    (span, Token::Literal(Literal::Str(StrTag::Txt, chunk))) => {
-                        let mut value = String::new();
-                        let tmp = textwrap::dedent(&chunk);
-                        for line in tmp.split("\n\n") {
-                            dbg!(line);
-                            for (i, line) in line.lines().enumerate() {
-                                if i != 0 {
-                                    value.push(' ');
-                                }
-                                value.push_str(line);
-                            }
-                            value.push('\n');
-                        }
+                    (span, Token::Literal(Literal::Str(StrTag::Esc, value))) => {
                         Value {
-                            value: <$type>::from(value),
+                            value: crate::string::esc::decode_str(value).into(),
+                            span,
+                        }
+                    }
+                    (span, Token::Literal(Literal::Str(StrTag::Txt, value))) => {
+                        Value {
+                            value: crate::string::txt::decode_str(value).into(),
                             span,
                         }
                     }
@@ -92,7 +86,7 @@ impl<T: LogixType> LogixType for Map<T> {
                 brace: Brace::Curly,
             },
         )?;
-        p.req_token("map", Token::Newline)?;
+        p.req_token("map", Token::Newline(false))?;
 
         while let Some((key, value)) = p.read_key_value("map", Brace::Curly)? {
             if let (i, Some(_)) = map.insert_full(key.value, value.value) {

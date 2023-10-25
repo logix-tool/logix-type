@@ -3,7 +3,7 @@ use std::fmt;
 use logix_type::{
     error::{ParseError, SourceSpan, Wanted},
     LogixLoader, LogixType,
-    __private::{Brace, Delim, Token},
+    __private::{Delim, Token},
 };
 use logix_vfs::RelFs;
 
@@ -111,7 +111,7 @@ fn two_types() {
         ParseError::UnexpectedToken {
             span: l.span("test.logix", 5, 0, 6),
             while_parsing: "Struct",
-            wanted: Wanted::Token(Token::Eof),
+            wanted: Wanted::Token(Token::Newline(true)),
             got_token: "identifier",
         }
     );
@@ -146,14 +146,7 @@ fn unclosed_curly_brace() {
         ParseError::UnexpectedToken {
             span: l.span("test.logix", 1, 8, 0),
             while_parsing: "Struct",
-            wanted: Wanted::Tokens(&[
-                Token::Brace {
-                    start: false,
-                    brace: Brace::Curly
-                },
-                Token::Ident("aaa"),
-                Token::Ident("bbbb")
-            ]),
+            wanted: Wanted::Token(Token::Newline(false)),
             got_token: "end of file",
         }
     );
@@ -166,13 +159,13 @@ fn unclosed_curly_brace() {
             "   ---> test.logix:1:8\n",
             "    |\n",
             "  1 | Struct {\n",
-            "    |          Expected one of `}`, `aaa`, or `bbbb`\n",
+            "    |         ^ Expected newline\n",
         )
     );
 
     assert_eq!(
         disval(&e),
-        "Unexpected end of file while parsing `Struct`, expected one of `}`, `aaa`, or `bbbb` in test.logix:1:8"
+        "Unexpected end of file while parsing `Struct`, expected newline in test.logix:1:8"
     );
 }
 
@@ -186,7 +179,7 @@ fn no_newline() {
         ParseError::UnexpectedToken {
             span: l.span("test.logix", 1, 8, 1),
             while_parsing: "Struct",
-            wanted: Wanted::Token(Token::Newline),
+            wanted: Wanted::Token(Token::Newline(false)),
             got_token: "`}`",
         }
     );

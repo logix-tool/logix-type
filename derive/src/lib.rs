@@ -51,7 +51,5 @@ pub fn impl_logix_type(input: TokenStream) -> TokenStream {
         }
     };
 
-    //println!("{}", tokens.to_string());
-
     tokens.into()
 }
