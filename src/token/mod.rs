@@ -35,12 +35,10 @@ pub enum Brace {
     Curly,
     /// Parenthesis `()`
     Paren,
-    /*
     /// Square brackets `[]`
     Square,
     /// AAngle brackets `<>`
     Angle,
-    */
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -59,11 +57,6 @@ pub enum Literal<'a> {
 pub enum Token<'a> {
     Ident(&'a str),
     Literal(Literal<'a>),
-    TaggedStrChunk {
-        tag: StrTag,
-        chunk: &'a str,
-        last: bool,
-    },
     Brace {
         start: bool,
         brace: Brace,
@@ -79,18 +72,44 @@ impl<'a> Token<'a> {
         match self {
             Self::Ident(_) => "identifier",
             Self::Literal(Literal::Str(..)) => "string",
+            Self::Literal(Literal::Num(..)) => "number",
+            Self::Brace {
+                start: true,
+                brace: Brace::Paren,
+            } => "`(`",
             Self::Brace {
                 start: false,
                 brace: Brace::Paren,
             } => "`)`",
             Self::Brace {
+                start: true,
+                brace: Brace::Curly,
+            } => "`{`",
+            Self::Brace {
                 start: false,
                 brace: Brace::Curly,
             } => "`}`",
+            Self::Brace {
+                start: true,
+                brace: Brace::Square,
+            } => "`[`",
+            Self::Brace {
+                start: false,
+                brace: Brace::Square,
+            } => "`]`",
+            Self::Brace {
+                start: true,
+                brace: Brace::Angle,
+            } => "`<`",
+            Self::Brace {
+                start: false,
+                brace: Brace::Angle,
+            } => "`>`",
             Self::Delim(Delim::Comma) => "`,`",
+            Self::Delim(Delim::Colon) => "`:`",
             Self::Newline(false) => "newline",
             Self::Newline(true) => "end of file",
-            unk => todo!("{unk:?}"),
+            Self::Comment(..) => "comment",
         }
     }
 }
@@ -100,7 +119,6 @@ impl<'a> fmt::Display for Token<'a> {
         match self {
             Self::Ident(value) => write!(f, "`{value}`"),
             Self::Literal(..) => todo!(),
-            Self::TaggedStrChunk { .. } => todo!(),
             Self::Comment(..) => todo!(),
             Self::Brace { .. } | Self::Delim(..) | Self::Newline(..) => {
                 write!(f, "{}", self.token_type_name())

@@ -1,5 +1,7 @@
 use logix_type::{error::Result, LogixLoader, Map, Str};
-use logix_vfs::RelFs;
+use logix_vfs::{LogixVfs, RelFs};
+
+static ALL_TYPES_FILE: &str = include_str!("include/all-types.logix");
 
 #[derive(logix_type::LogixType, PartialEq, Debug)]
 struct Root {
@@ -107,10 +109,8 @@ fn expected_root() -> Root {
     }
 }
 
-#[test]
-fn load() -> Result<()> {
+fn load_and_compare(loader: &mut LogixLoader<impl LogixVfs>) -> Result<()> {
     let expected = expected_root();
-    let mut loader = LogixLoader::new(RelFs::new("tests/include"));
     let Root {
         type_i8,
         type_u8,
@@ -153,4 +153,53 @@ fn load() -> Result<()> {
         }
     }
     Ok(())
+}
+
+#[test]
+fn just_load() -> Result<()> {
+    load_and_compare(&mut LogixLoader::new(RelFs::new("tests/include")))
+}
+
+#[test]
+fn terminating_line_comment() -> Result<()> {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(
+        dir.path().join("all-types.logix"),
+        format!("{ALL_TYPES_FILE} // End in a line-comment"),
+    )
+    .unwrap();
+    load_and_compare(&mut LogixLoader::new(RelFs::new(dir.path())))
+}
+
+#[test]
+fn terminating_multiline_comment() -> Result<()> {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(
+        dir.path().join("all-types.logix"),
+        format!("{ALL_TYPES_FILE} /*\nEnd in a multi-line comment\n*/"),
+    )
+    .unwrap();
+    load_and_compare(&mut LogixLoader::new(RelFs::new(dir.path())))
+}
+
+#[test]
+fn terminating_eols() -> Result<()> {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(
+        dir.path().join("all-types.logix"),
+        format!("{ALL_TYPES_FILE}\n\n\n\n\n\n\n"),
+    )
+    .unwrap();
+    load_and_compare(&mut LogixLoader::new(RelFs::new(dir.path())))
+}
+
+#[test]
+fn terminating_spaces() -> Result<()> {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(
+        dir.path().join("all-types.logix"),
+        format!("{ALL_TYPES_FILE}   \n  \n \t\t  \n  \n\n\n\n"),
+    )
+    .unwrap();
+    load_and_compare(&mut LogixLoader::new(RelFs::new(dir.path())))
 }

@@ -99,6 +99,10 @@ pub fn parse_token<'a>(buf: &'a [u8]) -> ParseRes<'a> {
         Some(b'}') => ParseRes::new_brace(start, false, Brace::Curly),
         Some(b'(') => ParseRes::new_brace(start, true, Brace::Paren),
         Some(b')') => ParseRes::new_brace(start, false, Brace::Paren),
+        Some(b'[') => ParseRes::new_brace(start, true, Brace::Square),
+        Some(b']') => ParseRes::new_brace(start, false, Brace::Square),
+        Some(b'<') => ParseRes::new_brace(start, true, Brace::Angle),
+        Some(b'>') => ParseRes::new_brace(start, false, Brace::Angle),
         Some(b':') => ParseRes::new(start..start + 1, Token::Delim(Delim::Colon)),
         Some(b',') => ParseRes::new(start..start + 1, Token::Delim(Delim::Comma)),
         Some(b'\n') => {
