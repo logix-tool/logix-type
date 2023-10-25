@@ -3,7 +3,7 @@ use std::ops::Range;
 use crate::{
     error::{ParseError, Result, SourceSpan, Wanted, Warn},
     loader::{CachedFile, LogixLoader},
-    token::{Brace, Token, TokenState},
+    token::{parse_token, Brace, Delim, ParseRes, Token},
     type_trait::Value,
     LogixType,
 };
@@ -13,14 +13,11 @@ use smol_str::SmolStr;
 pub struct LogixParser<'fs, 'f, FS: LogixVfs> {
     _loader: &'fs mut LogixLoader<FS>,
     file: &'f CachedFile,
-    lines: bstr::Lines<'f>,
-    cur_line: &'f [u8],
+    cur_pos: usize,
     cur_col: usize,
     cur_ln: usize,
-    state: TokenState,
-    eof: bool,
     last_was_newline: bool,
-    tmp_buf: String,
+    eof: bool,
 }
 
 impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
@@ -28,20 +25,16 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
         Self {
             _loader: loader,
             file,
-            lines: file.lines(),
-            cur_line: b"",
+            cur_pos: 0,
             cur_col: 0,
-            cur_ln: 0,
-            state: TokenState::Normal,
+            cur_ln: 1,
+            last_was_newline: false,
             eof: false,
-            last_was_newline: true,
-            tmp_buf: String::new(),
         }
     }
 
     pub fn next_token(&mut self) -> Result<(SourceSpan, Token)> {
-        self.raw_next_token(true)
-            .map(|(span, _, token)| (span, token))
+        self.raw_next_token().map(|(span, _, token)| (span, token))
     }
 
     pub fn warning(&self, warning: Warn) -> Result<()> {
@@ -58,77 +51,85 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
         )
     }
 
-    fn raw_next_token(&mut self, advance: bool) -> Result<(SourceSpan, usize, Token)> {
-        let mut str_type = None;
-        self.tmp_buf.clear();
+    fn raw_next_token(&mut self) -> Result<(SourceSpan, usize, Token)> {
+        if self.eof {
+            return Ok((self.cur_span(0..0), 0, Token::Eof));
+        }
 
-        loop {
-            let (span, size, mut token) = 'next_token_loop: loop {
-                while self.cur_col == self.cur_line.len() {
-                    if let Some(line) = self.lines.next() {
-                        let ret = (self.cur_span(0..0), 0, Token::Newline);
-                        self.cur_line = line;
-                        self.cur_col = 0;
-                        self.cur_ln += 1;
-                        if self.cur_ln != 1 {
-                            break 'next_token_loop ret;
-                        }
-                    } else if !self.eof {
-                        self.eof = true;
-                        if self.cur_ln == 0 {
-                            self.cur_ln += 1;
-                        }
-                        break 'next_token_loop (self.cur_span(0..0), 0, Token::Newline);
-                    } else {
-                        break 'next_token_loop (self.cur_span(0..0), 0, Token::Eof);
-                    }
-                }
+        'outer: loop {
+            let last_was_newline = std::mem::take(&mut self.last_was_newline);
 
-                break match self.state.parse_token(&self.cur_line[self.cur_col..]) {
-                    Ok((range, size, token)) => {
-                        let span = self.cur_span(range);
-                        if advance {
-                            self.cur_col += size;
-                        }
-
-                        (span, size, token)
-                    }
-                    unk => todo!("{unk:?}"),
-                };
-            };
-
-            match token {
-                Token::CommentChunk { .. } => continue,
-                Token::Newline => {
-                    if str_type.is_some() {
-                        continue;
-                    } else if self.last_was_newline {
-                        continue;
-                    }
-                    self.last_was_newline = true;
-                }
-                Token::TaggedStrChunk { tag, chunk, last } => {
-                    let first = if str_type.is_none() {
-                        str_type = Some(tag);
-                        true
-                    } else {
-                        assert_eq!(Some(tag), str_type);
-                        false
-                    };
-                    self.tmp_buf.push_str(chunk);
-                    if !last {
-                        if !first {
-                            self.tmp_buf.push('\n');
-                        }
-                        continue;
-                    }
-
-                    token = Token::TaggedStr(tag, &self.tmp_buf);
-                }
-                _ => self.last_was_newline = false,
+            if last_was_newline {
+                self.cur_ln += 1;
+                self.cur_col = 0;
             }
 
-            return Ok((span, size, token));
+            'ignore_token: loop {
+                let buf = &self.file.data()[self.cur_pos..];
+
+                return match dbg!(parse_token(buf)) {
+                    ParseRes {
+                        len,
+                        range,
+                        lines: 0,
+                        token:
+                            Ok(
+                                token @ (Token::Ident(..)
+                                | Token::Brace { .. }
+                                | Token::Delim(..)
+                                | Token::Literal(..)),
+                            ),
+                    } => {
+                        let span = self.cur_span(range);
+                        self.cur_col += len;
+                        self.cur_pos += len;
+                        Ok((span, len, token))
+                    }
+                    ParseRes {
+                        len,
+                        range,
+                        lines: 0,
+                        token: Ok(Token::Newline),
+                    } => {
+                        let span = self.cur_span(range);
+                        self.cur_col += len;
+                        self.cur_pos += len;
+                        self.last_was_newline = true;
+                        if last_was_newline {
+                            continue 'outer;
+                        }
+                        Ok((span, len, Token::Newline))
+                    }
+                    ParseRes {
+                        len,
+                        range: _,
+                        lines: 0,
+                        token: Ok(Token::Comment(_)),
+                    } => {
+                        self.cur_col += len;
+                        self.cur_pos += len;
+                        continue 'ignore_token;
+                    }
+                    ParseRes {
+                        len,
+                        range,
+                        lines: 0,
+                        token: Ok(Token::Eof),
+                    } => {
+                        let token = if self.file.data().ends_with(b"\n") {
+                            Token::Eof
+                        } else {
+                            Token::Newline
+                        };
+                        self.eof = true;
+                        let span = self.cur_span(range);
+                        self.cur_col += len;
+                        self.cur_pos += len;
+                        Ok((span, len, token))
+                    }
+                    unk => todo!("{unk:#?}"),
+                };
+            }
         }
     }
 
@@ -163,7 +164,7 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
                     span,
                 };
 
-                self.req_token(while_parsing, Token::Colon)?;
+                self.req_token(while_parsing, Token::Delim(Delim::Colon))?;
 
                 let value = T::logix_parse(self)?;
 
@@ -171,7 +172,13 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
 
                 Ok(Some((key, value)))
             }
-            (_, Token::BraceEnd(brace)) if brace == end_brace => Ok(None),
+            (
+                _,
+                Token::Brace {
+                    start: false,
+                    brace,
+                },
+            ) if brace == end_brace => Ok(None),
             unk => todo!("{unk:#?}"),
         }
     }
@@ -181,7 +188,7 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
 mod tests {
     use logix_vfs::RelFs;
 
-    use crate::token::Brace;
+    use crate::token::{Brace, Literal, StrTag};
 
     use super::*;
 
@@ -202,14 +209,35 @@ mod tests {
         assert_eq!(p.next_token()?, (s(f, 1, 0, 5), Token::Ident("Hello")));
         assert_eq!(
             p.next_token()?,
-            (s(f, 1, 6, 1), Token::BraceStart(Brace::Curly))
+            (
+                s(f, 1, 6, 1),
+                Token::Brace {
+                    start: true,
+                    brace: Brace::Curly
+                }
+            )
         );
         assert_eq!(p.next_token()?, (s(f, 1, 8, 5), Token::Ident("world")));
-        assert_eq!(p.next_token()?, (s(f, 1, 13, 1), Token::Colon));
-        assert_eq!(p.next_token()?, (s(f, 1, 16, 3), Token::LitStr("!!!")));
         assert_eq!(
             p.next_token()?,
-            (s(f, 1, 21, 1), Token::BraceEnd(Brace::Curly))
+            (s(f, 1, 13, 1), Token::Delim(Delim::Colon))
+        );
+        assert_eq!(
+            p.next_token()?,
+            (
+                s(f, 1, 15, 5),
+                Token::Literal(Literal::Str(StrTag::Raw, "!!!"))
+            )
+        );
+        assert_eq!(
+            p.next_token()?,
+            (
+                s(f, 1, 21, 1),
+                Token::Brace {
+                    start: false,
+                    brace: Brace::Curly
+                }
+            )
         );
 
         assert_eq!(p.next_token()?, (s(f, 1, 22, 0), Token::Newline));

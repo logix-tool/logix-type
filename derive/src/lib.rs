@@ -45,7 +45,7 @@ pub fn impl_logix_type(input: TokenStream) -> TokenStream {
             };
 
             fn logix_parse<FS: #cr::LogixVfs>(p: &mut #cr::LogixParser<FS>) -> #cr::Result<#cr::Value<Self>> {
-                use #cr::{Token, ParseError, Brace, LogixType, Wanted};
+                use #cr::{Token, ParseError, Brace, LogixType, Wanted, Delim};
                 #parse
             }
         }

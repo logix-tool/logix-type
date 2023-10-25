@@ -6,9 +6,9 @@ use logix_vfs::LogixVfs;
 
 use crate::{
     error::{ParseError, Wanted},
-    LogixType,
-    __private::LogixParser,
+    parser::LogixParser,
     token::Token,
+    type_trait::LogixType,
 };
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
@@ -30,6 +30,10 @@ impl CachedFile {
 
     pub fn lines(&self) -> bstr::Lines {
         self.data.lines()
+    }
+
+    pub fn data(&self) -> &[u8] {
+        &self.data
     }
 }
 

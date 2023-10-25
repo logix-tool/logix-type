@@ -3,7 +3,7 @@ use std::fmt;
 use logix_type::{
     error::{ParseError, SourceSpan, Wanted},
     LogixLoader, LogixType,
-    __private::{Brace, Token},
+    __private::{Brace, Delim, Token},
 };
 use logix_vfs::RelFs;
 
@@ -147,7 +147,10 @@ fn unclosed_curly_brace() {
             span: l.span("test.logix", 1, 8, 0),
             while_parsing: "Struct",
             wanted: Wanted::Tokens(&[
-                Token::BraceEnd(Brace::Curly),
+                Token::Brace {
+                    start: false,
+                    brace: Brace::Curly
+                },
                 Token::Ident("aaa"),
                 Token::Ident("bbbb")
             ]),
@@ -350,7 +353,7 @@ fn one_member_tuple_want_comma() {
             span: l.span("test.logix", 1, 8, 1),
             while_parsing: "Tuple",
             got_token: "`)`",
-            wanted: Wanted::Token(Token::Comma),
+            wanted: Wanted::Token(Token::Delim(Delim::Comma)),
         }
     );
 

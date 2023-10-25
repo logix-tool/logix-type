@@ -94,16 +94,16 @@ pub(crate) fn do_named(
                         #(#member_names: #member_tmp_init,)*
                     };
 
-                    let mut curly_span = p.req_token(#type_name_str, Token::BraceStart(Brace::Curly))?;
+                    let mut curly_span = p.req_token(#type_name_str, Token::Brace { start: true, brace: Brace::Curly })?;
                     p.req_token(#type_name_str, Token::Newline)?;
                     'parse_members: loop {
                         match p.next_token()? {
                             #((span, Token::Ident(#member_str_names)) => {
-                                p.req_token(#type_name_str, Token::Colon)?;
+                                p.req_token(#type_name_str, Token::Delim(Delim::Colon))?;
                                 #member_tmp_parse;
                                 p.req_token(#type_name_str, Token::Newline)?;
                             })*
-                            (span, Token::BraceEnd(Brace::Curly)) => {
+                            (span, Token::Brace { start: false, brace: Brace::Curly }) => {
                                 curly_span = span;
                                 break 'parse_members;
                             }
@@ -111,7 +111,7 @@ pub(crate) fn do_named(
                                 span,
                                 while_parsing: #type_name_str,
                                 wanted: Wanted::Tokens(&[
-                                    Token::BraceEnd(Brace::Curly),
+                                    Token::Brace { start: false, brace: Brace::Curly },
                                     #(Token::Ident(#member_str_names),)*
                                 ]),
                                 got_token: token.token_type_name(),
@@ -169,20 +169,20 @@ pub(crate) fn do_unnamed(
         ),
         quote!(
             let type_name_span = p.req_token(#type_name_str, Token::Ident(#type_name_str))?;
-            p.req_token(#type_name_str, Token::BraceStart(Brace::Paren))?;
+            p.req_token(#type_name_str, Token::Brace { start: true, brace: Brace::Paren })?;
             Ok(#cr::Value {
                 value: #prefix #type_name (
                     #({
                         let value = #member_parse;
 
-                        p.req_token(#type_name_str, Token::Comma)?;
+                        p.req_token(#type_name_str, Token::Delim(Delim::Comma))?;
 
                         value
                     },)*
                     #({
                         let value = #last_member_parse;
 
-                        p.req_token(#type_name_str, Token::BraceEnd(Brace::Paren))?;
+                        p.req_token(#type_name_str, Token::Brace { start: false, brace: Brace::Paren })?;
 
                         value
                     },)*

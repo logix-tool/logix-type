@@ -1,6 +1,6 @@
 use super::{
-    Brace, LogixParser, LogixType, LogixTypeDescriptor, LogixValueDescriptor, LogixVfs, Map,
-    ParseError, Result, Str, StrTag, Token, Value, Wanted, Warn,
+    Brace, Literal, LogixParser, LogixType, LogixTypeDescriptor, LogixValueDescriptor, LogixVfs,
+    Map, ParseError, Result, Str, StrTag, Token, Value, Wanted, Warn,
 };
 
 macro_rules! impl_for_str {
@@ -14,11 +14,11 @@ macro_rules! impl_for_str {
 
             fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<Self>> {
                 Ok(match p.next_token()? {
-                    (span, Token::LitStr(chunk)) => Value {
-                        value: <$type>::from(chunk),
+                    (span, Token::Literal(Literal::Str(StrTag::Esc, value))) => Value {
+                        value: <$type>::from(value),
                         span,
                     },
-                    (span, Token::TaggedStr(StrTag::Txt, chunk)) => {
+                    (span, Token::Literal(Literal::Str(StrTag::Txt, chunk))) => {
                         let mut value = String::new();
                         let tmp = textwrap::dedent(&chunk);
                         for line in tmp.split("\n\n") {
@@ -61,7 +61,7 @@ macro_rules! impl_for_int {
 
             fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<Self>> {
                 Ok(match p.next_token()? {
-                    (span, Token::LitNumber(num)) => Value {
+                    (span, Token::Literal(Literal::Num(num))) => Value {
                         value: num.parse().unwrap(), // TODO(2023.10): Return a sensible error
                         span,
                     },
@@ -85,7 +85,13 @@ impl<T: LogixType> LogixType for Map<T> {
     fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<Self>> {
         let mut map = Map::new();
 
-        let start = p.req_token("map", Token::BraceStart(Brace::Curly))?;
+        let start = p.req_token(
+            "map",
+            Token::Brace {
+                start: true,
+                brace: Brace::Curly,
+            },
+        )?;
         p.req_token("map", Token::Newline)?;
 
         while let Some((key, value)) = p.read_key_value("map", Brace::Curly)? {
