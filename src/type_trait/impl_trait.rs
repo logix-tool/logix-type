@@ -20,7 +20,11 @@ macro_rules! impl_for_str {
                     },
                     (span, Token::Literal(Literal::Str(StrTag::Esc, value))) => {
                         Value {
-                            value: crate::string::esc::decode_str(value).into(),
+                            value: crate::string::esc::decode_str(value)
+                                .map_err(|(off, len, error)| {
+                                    ParseError::StrEscError { span: span.with_off(off, len), error }
+                                })?
+                                .into(),
                             span,
                         }
                     }

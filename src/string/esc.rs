@@ -1,12 +1,14 @@
 use bstr::ByteSlice;
 
+use crate::error::EscStrError;
+
 /// Decode a string with basic escapes
-pub fn decode_str(s: &str) -> String {
+pub fn decode_str(s: &str) -> Result<String, (usize, usize, EscStrError)> {
     let mut it = s.split('\\');
     let mut ret = String::with_capacity(s.len());
     let mut skip_next = false;
 
-    ret.push_str(it.next().unwrap_or_else(|| todo!("unreachable perhaps?")));
+    ret.push_str(it.next().unwrap()); // First chunk is always valid, and always exist
 
     for chunk in it {
         if std::mem::take(&mut skip_next) {
@@ -32,7 +34,13 @@ pub fn decode_str(s: &str) -> String {
                 ret.push_str(&chunk[1..]);
             }
             Some(b'x') => {
-                let hex_str = chunk.get(1..3).unwrap_or_else(|| todo!("{chunk:?}"));
+                let hex_str = chunk.get(1..3).ok_or_else(|| {
+                    (
+                        chunk.as_ptr() as usize - s.as_ptr() as usize,
+                        chunk.len() + 1,
+                        EscStrError::TruncatedHex,
+                    )
+                })?;
                 let v = u8::from_str_radix(hex_str, 16).unwrap_or_else(|_| todo!("{chunk:?}"));
                 ret.push(char::from(v));
                 ret.push_str(&chunk[3..]);
@@ -64,5 +72,5 @@ pub fn decode_str(s: &str) -> String {
         }
     }
 
-    ret
+    Ok(ret)
 }

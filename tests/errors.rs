@@ -1,7 +1,7 @@
 use std::fmt;
 
 use logix_type::{
-    error::{ParseError, SourceSpan, Wanted},
+    error::{EscStrError, ParseError, SourceSpan, Wanted},
     LogixLoader, LogixType,
     __private::{Delim, Token},
 };
@@ -482,4 +482,50 @@ fn stray_number() {
     stray_token("133_7", "number");
     stray_token("-1337", "number");
     stray_token("-13_37", "number");
+}
+
+fn escape_str(esc_str: &str, col_off: usize, col_len: usize, underline: &str) {
+    let col = 8 + col_off;
+    let mut l = Loader::init().with_file(
+        "test.logix",
+        format!("Struct {{\n  aaa: 10\n  bbbb: {esc_str}\n}}").as_bytes(),
+    );
+    let e = l.parse_struct("test.logix");
+
+    assert_eq!(
+        e,
+        ParseError::StrEscError {
+            span: l.span("test.logix", 3, col, col_len),
+            error: EscStrError::TruncatedHex
+        }
+    );
+
+    assert_eq!(
+        debval(&e),
+        [
+            format!("\n"),
+            format!("error: Failed to parse escaped string\n"),
+            format!("   ---> test.logix:3:{col}\n"),
+            format!("    |\n"),
+            format!("  2 |   aaa: 10\n"),
+            format!("  3 |   bbbb: {esc_str}\n"),
+            format!(
+                "    |         {} got truncated hex escape code\n",
+                underline
+            ),
+            format!("  4 | }}\n"),
+        ]
+        .into_iter()
+        .collect::<String>(),
+    );
+
+    assert_eq!(
+        disval(&e),
+        format!("Failed to parse string, got truncated hex escape code in test.logix:3:{col}")
+    );
+}
+
+#[test]
+fn escape_hex() {
+    escape_str(r#""\xf""#, 1, 3, " ^^^");
 }

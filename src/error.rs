@@ -11,6 +11,12 @@ use crate::{token::Token, Str};
 
 pub type Result<T> = std::result::Result<T, ParseError>;
 
+#[derive(Error, PartialEq, Debug)]
+pub enum EscStrError {
+    #[error("got truncated hex escape code")]
+    TruncatedHex,
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SourceSpan {
     file: CachedFile,
@@ -61,6 +67,16 @@ impl SourceSpan {
                     None
                 }
             })
+    }
+
+    pub fn with_off(&self, off: usize, len: usize) -> Self {
+        let off = u16::try_from(off).unwrap();
+        let len = u16::try_from(len).unwrap();
+        Self {
+            file: self.file.clone(),
+            line: self.line,
+            col: self.col.start + off..self.col.start + off + len,
+        }
     }
 }
 
@@ -133,6 +149,12 @@ pub enum ParseError {
         got_token: &'static str,
         wanted: Wanted,
     },
+
+    #[error("Failed to parse string, {error} in {span}")]
+    StrEscError {
+        span: SourceSpan,
+        error: EscStrError,
+    },
 }
 
 impl ParseError {
@@ -180,6 +202,9 @@ impl fmt::Debug for ParseError {
                 span,
                 format_args!("Expected {wanted}"),
             ),
+            Self::StrEscError { span, error } => {
+                write_error(f, "Failed to parse escaped string", span, error)
+            }
         }
     }
 }
