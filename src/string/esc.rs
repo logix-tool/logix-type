@@ -41,7 +41,13 @@ pub fn decode_str(s: &str) -> Result<String, (usize, usize, EscStrError)> {
                         EscStrError::TruncatedHex,
                     )
                 })?;
-                let v = u8::from_str_radix(hex_str, 16).unwrap_or_else(|_| todo!("{chunk:?}"));
+                let v = u8::from_str_radix(hex_str, 16).map_err(|_| {
+                    (
+                        (hex_str.as_ptr() as usize - s.as_ptr() as usize) - 1,
+                        hex_str.len() + 2,
+                        EscStrError::InvalidHex,
+                    )
+                })?;
                 ret.push(char::from(v));
                 ret.push_str(&chunk[3..]);
             }

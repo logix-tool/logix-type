@@ -15,6 +15,8 @@ pub type Result<T> = std::result::Result<T, ParseError>;
 pub enum EscStrError {
     #[error("got truncated hex escape code")]
     TruncatedHex,
+    #[error("got invalid hex escape code")]
+    InvalidHex,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

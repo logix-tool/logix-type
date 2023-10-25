@@ -484,7 +484,14 @@ fn stray_number() {
     stray_token("-13_37", "number");
 }
 
-fn escape_str(esc_str: &str, col_off: usize, col_len: usize, underline: &str) {
+fn escape_str(
+    esc_str: &str,
+    col_off: usize,
+    col_len: usize,
+    underline: &str,
+    error: EscStrError,
+    err_str: &str,
+) {
     let col = 8 + col_off;
     let mut l = Loader::init().with_file(
         "test.logix",
@@ -496,7 +503,7 @@ fn escape_str(esc_str: &str, col_off: usize, col_len: usize, underline: &str) {
         e,
         ParseError::StrEscError {
             span: l.span("test.logix", 3, col, col_len),
-            error: EscStrError::TruncatedHex
+            error,
         }
     );
 
@@ -509,10 +516,7 @@ fn escape_str(esc_str: &str, col_off: usize, col_len: usize, underline: &str) {
             format!("    |\n"),
             format!("  2 |   aaa: 10\n"),
             format!("  3 |   bbbb: {esc_str}\n"),
-            format!(
-                "    |         {} got truncated hex escape code\n",
-                underline
-            ),
+            format!("    |         {} {err_str}\n", underline),
             format!("  4 | }}\n"),
         ]
         .into_iter()
@@ -521,11 +525,26 @@ fn escape_str(esc_str: &str, col_off: usize, col_len: usize, underline: &str) {
 
     assert_eq!(
         disval(&e),
-        format!("Failed to parse string, got truncated hex escape code in test.logix:3:{col}")
+        format!("Failed to parse string, {err_str} in test.logix:3:{col}")
     );
 }
 
 #[test]
 fn escape_hex() {
-    escape_str(r#""\xf""#, 1, 3, " ^^^");
+    escape_str(
+        r#""\xf""#,
+        1,
+        3,
+        " ^^^",
+        EscStrError::TruncatedHex,
+        "got truncated hex escape code",
+    );
+    escape_str(
+        r#""\xfk""#,
+        1,
+        4,
+        " ^^^^",
+        EscStrError::InvalidHex,
+        "got invalid hex escape code",
+    );
 }
