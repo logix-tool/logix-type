@@ -4,7 +4,7 @@ pub use crate::{
     error::{ParseError, Result, Wanted, Warn},
     parser::LogixParser,
     span::SourceSpan,
-    token::{Brace, Delim, Literal, StrTag, Token},
+    token::{Brace, Delim, Literal, StrTag, StrTagSuffix, Token},
     Map, Str,
 };
 pub use logix_vfs::LogixVfs;

@@ -5,7 +5,10 @@ use owo_colors::OwoColorize;
 use logix_vfs::LogixVfs;
 use thiserror::Error;
 
-use crate::{token::Token, Str};
+use crate::{
+    token::{StrTag, StrTagSuffix, Token},
+    Str,
+};
 
 pub type Result<T> = std::result::Result<T, ParseError>;
 
@@ -15,6 +18,14 @@ pub enum TokenError {
     LitStrNotUtf8,
     #[error("unexpected character {0:?}")]
     UnexpectedChar(char),
+    #[error("unexpected end of file, expected `*/`")]
+    MissingCommentTerminator,
+    #[error("unknown string tag `{0}`")]
+    UnknownStrTag(Str),
+    #[error("unexpected end of the string, expected `\"`")]
+    MissingStringTerminator,
+    #[error("unexpected end of {tag} string, expected {suffix}")]
+    MissingTaggedStringTerminator { tag: StrTag, suffix: StrTagSuffix },
 }
 
 #[derive(Error, PartialEq, Debug)]

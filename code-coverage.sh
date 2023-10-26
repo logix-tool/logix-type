@@ -12,6 +12,9 @@ then
   exit 1
 fi
 
+rm -f $CARGO_TARGET_DIR/cargo-test-*.profraw
+rm -rf $CARGO_TARGET_DIR/html
+
 cargo test
 
 grcov . \

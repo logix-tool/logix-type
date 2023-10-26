@@ -2,7 +2,7 @@ use std::str::from_utf8;
 
 use bstr::ByteSlice;
 
-use super::{ParseRes, Token};
+use super::{ParseRes, Token, TokenError};
 
 pub fn parse_comment<'a>(buf: &'a [u8], start: usize) -> Option<ParseRes<'a>> {
     if let Some(cur) = buf[start..].strip_prefix(b"//") {
@@ -11,7 +11,7 @@ pub fn parse_comment<'a>(buf: &'a [u8], start: usize) -> Option<ParseRes<'a>> {
             start..start + comment.len() + 2,
             Token::Comment(from_utf8(comment.trim()).unwrap()),
         ))
-    } else if let Some(comment) = buf[start..].strip_prefix(b"/*") {
+    } else if buf[start..].starts_with(b"/*") {
         let mut end = start + 2;
         let mut level = 0;
 
@@ -38,11 +38,15 @@ pub fn parse_comment<'a>(buf: &'a [u8], start: usize) -> Option<ParseRes<'a>> {
                     end += 2;
                     level += 1;
                 }
-                unk => todo!("{unk:?}"),
+                _ => end += 1,
             }
         }
 
-        todo!("{comment:?}")
+        Some(ParseRes::new_res(
+            buf.len()..buf.len() + 1,
+            0,
+            Err(TokenError::MissingCommentTerminator),
+        ))
     } else {
         None
     }

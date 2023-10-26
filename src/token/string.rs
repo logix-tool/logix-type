@@ -1,6 +1,8 @@
 use bstr::ByteSlice;
 
-use super::{Literal, ParseRes, StrTag, Token, TokenError};
+use crate::Str;
+
+use super::{Literal, ParseRes, StrTag, StrTagSuffix, Token, TokenError};
 
 fn parse_utf8<'a>(
     start: usize,
@@ -24,48 +26,67 @@ pub fn parse_basic<'a>(buf: &'a [u8], start: usize) -> ParseRes<'a> {
 
     while let Some(off) = buf[pos..].find_byteset(b"\\\"\n") {
         pos += off;
-        match buf.get(pos).copied() {
-            Some(b'"') => {
+        match buf[pos] {
+            b'"' => {
                 return parse_utf8(start + 1, pos, &buf[start + 1..pos], |value| {
                     ParseRes::new(start..pos + 1, Token::Literal(Literal::Str(tag, value)))
                 });
             }
-            Some(b'\\') => {
+            b'\\' => {
                 tag = StrTag::Esc;
                 pos += 2;
             }
-            Some(b'\n') => todo!("Unexpected end of string"),
-            Some(unk) => unreachable!("{unk:?} ({:?}) is not in byteset", char::from(unk)),
-            None => todo!("unexpected end of file"),
+            b'\n' => {
+                return ParseRes::new_res(pos..pos + 1, 0, Err(TokenError::MissingStringTerminator))
+            }
+            unk => unreachable!("{unk:?} ({:?}) is not in byteset", char::from(unk)),
         }
     }
 
-    todo!("Unexpected end of file?")
+    ParseRes::new_res(
+        buf.len()..buf.len(),
+        0,
+        Err(TokenError::MissingStringTerminator),
+    )
 }
 
-pub fn parse_tagged<'a>(buf: &'a [u8], start: usize) -> ParseRes<'a> {
-    static HASHES: &str = "\"################################";
+pub fn parse_tagged<'a>(buf: &'a [u8], start: usize) -> Option<ParseRes<'a>> {
     let num_hashes = buf[start..].find_not_byteset(b"#").unwrap();
-    let suffix = if num_hashes < HASHES.len() {
-        HASHES[..num_hashes + 1].as_bytes()
-    } else {
-        todo!("Too many #")
-    };
+    let suffix = StrTagSuffix::new(num_hashes);
+
     let mut pos = start + num_hashes;
 
     let tag = if let Some((off, tag)) = StrTag::from_prefix(&buf[pos..]) {
         pos += off;
         tag
+    } else if let Some(off) = buf[pos..].find_not_byteset(StrTag::VALID.0) {
+        let end = pos + off;
+        let tag = Str::new(std::str::from_utf8(&buf[pos..end]).unwrap());
+        match buf[end] {
+            b'"' => {
+                return Some(ParseRes::new_res(
+                    pos - 1..end,
+                    0,
+                    Err(TokenError::UnknownStrTag(tag)),
+                ));
+            }
+            // NOTE(2023.10): It is not a string, return None to let the caller figure out what to do
+            _ => return None,
+        }
     } else {
-        todo!("No valid tag")
+        todo!()
     };
 
-    if let Some((value, _)) = buf[pos..].split_once_str(suffix) {
+    if let Some((value, _)) = buf[pos..].split_once_str(&suffix) {
         let end = pos + value.len() + suffix.len();
-        return parse_utf8(start + pos, end, value, |v| {
+        return Some(parse_utf8(start + pos, end, value, |v| {
             ParseRes::new_lines(buf, start..end, 0, Ok(Token::Literal(Literal::Str(tag, v))))
-        });
-    } else {
-        todo!("unexpected eof")
+        }));
     }
+
+    Some(ParseRes::new_res(
+        buf.len()..buf.len(),
+        0,
+        Err(TokenError::MissingTaggedStringTerminator { tag, suffix }),
+    ))
 }

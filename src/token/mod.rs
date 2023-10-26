@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{borrow::Cow, fmt};
 
 use crate::error::TokenError;
 
@@ -6,6 +6,8 @@ mod comment;
 mod parse;
 mod string;
 pub use parse::{parse_token, ParseRes};
+
+struct ByteSet(&'static str);
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum StrTag {
@@ -22,12 +24,59 @@ pub enum StrTag {
 }
 
 impl StrTag {
+    const VALID: ByteSet = ByteSet("abcdefghijklmnopqrstuvwxyz0123456789-_");
+
     fn from_prefix(buf: &[u8]) -> Option<(usize, Self)> {
         if buf.starts_with(b"txt\"") {
             Some((4, Self::Txt))
         } else {
             None
         }
+    }
+}
+
+impl<'a> fmt::Display for StrTag {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Raw => write!(f, "`#raw`"),
+            Self::Esc => write!(f, "`#esc`"),
+            Self::Txt => write!(f, "`#txt`"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct StrTagSuffix(Cow<'static, str>);
+
+impl StrTagSuffix {
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
+impl StrTagSuffix {
+    pub fn new(num_hashes: usize) -> Self {
+        static HASHES: &str = "\"################################";
+        Self(if num_hashes < HASHES.len() {
+            Cow::Borrowed(&HASHES[..num_hashes + 1])
+        } else {
+            let mut s = String::with_capacity(num_hashes + 1);
+            s.push('"');
+            s.extend(std::iter::repeat('#').take(num_hashes));
+            Cow::Owned(s)
+        })
+    }
+}
+
+impl AsRef<[u8]> for StrTagSuffix {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_ref().as_ref()
+    }
+}
+
+impl<'a> fmt::Display for StrTagSuffix {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "`{}`", self.0)
     }
 }
 

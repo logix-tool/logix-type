@@ -10,13 +10,13 @@ Root {
   Block comment
   */
   type_i64: -7202218937
-  type_u64: 7202218937
+  type_u64: 7202218937 /* block comment with a * in it */
   type_str: "Hello, world!"
   type_string: "Howdy, universe!"
   type_map_int: {
     // Comment just after curly brace
     key1: 8
-    key2: -12
+    key2: -12 /* block comment with a / in it */
     key3: 0
   }
   type_map_str: {
@@ -58,4 +58,6 @@ Root {
     The prefix is also removed and so is the first and last newline
     "##
   esc_str: "LF: \n, Tab: \t, CR: \r, Unicode: \u{a4}, Backslash: \\, Quote: \", Hex: \x20"
+  very_long_escape1: ###################################txt"it works"###################################
+  very_long_escape2: ###################################txt"it "################################## works"###################################
 }

@@ -21,6 +21,8 @@ struct Root {
     type_map_unnamed_struct: Map<UnnamedNode>,
     txt_str: String,
     esc_str: String,
+    very_long_escape1: String,
+    very_long_escape2: String,
 }
 
 #[derive(logix_type::LogixType, PartialEq, Debug)]
@@ -108,6 +110,8 @@ fn expected_root() -> Root {
             "The prefix is also removed and so is the first and last newline",
         ).into(),
         esc_str: "LF: \n, Tab: \t, CR: \r, Unicode: \u{a4}, Backslash: \\, Quote: \", Hex: \x20".into(),
+        very_long_escape1: "it works".into(),
+        very_long_escape2: "it \"################################## works".into(),
     }
 }
 
@@ -130,6 +134,8 @@ fn load_and_compare(loader: &mut LogixLoader<impl LogixVfs>) -> Result<()> {
         type_map_unnamed_struct,
         txt_str,
         esc_str,
+        very_long_escape1,
+        very_long_escape2,
     } = loader.load_file("all-types.logix")?;
     assert_eq!(type_i8, expected.type_i8);
     assert_eq!(type_u8, expected.type_u8);
@@ -157,6 +163,8 @@ fn load_and_compare(loader: &mut LogixLoader<impl LogixVfs>) -> Result<()> {
     }
 
     assert_eq!(esc_str, expected.esc_str);
+    assert_eq!(very_long_escape1, expected.very_long_escape1);
+    assert_eq!(very_long_escape2, expected.very_long_escape2);
     Ok(())
 }
 

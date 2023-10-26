@@ -7,11 +7,9 @@ const IDENT1: ByteSet = ByteSet(concat!(
     "_-",
 ));
 
-pub(super) struct ByteSet(&'static str);
-
 use bstr::ByteSlice;
 
-use super::{Brace, Delim, Literal, Token, TokenError};
+use super::{Brace, ByteSet, Delim, Literal, Token, TokenError};
 
 #[derive(Debug)]
 pub struct ParseRes<'a> {
@@ -117,7 +115,13 @@ pub fn parse_token<'a>(buf: &'a [u8]) -> ParseRes<'a> {
             )
         }
         Some(b'"') => super::string::parse_basic(buf, start),
-        Some(b'#') => super::string::parse_tagged(buf, start),
+        Some(b'#') => {
+            if let Some(ret) = super::string::parse_tagged(buf, start) {
+                ret
+            } else {
+                ParseRes::new_res(start..start + 1, 0, Err(TokenError::UnexpectedChar('#')))
+            }
+        }
         Some(unk) => todo!("{unk:?}"),
         None => ParseRes::new(buf.len()..buf.len(), Token::Newline(true)),
     }
