@@ -17,6 +17,16 @@ pub enum EscStrError {
     TruncatedHex,
     #[error("got invalid hex escape code")]
     InvalidHex,
+    #[error("got invalid unicode hex escape code")]
+    InvalidUnicodeHex,
+    #[error("the code point U+{0:x} is invalid")]
+    InvalidUnicodePoint(u32),
+    #[error("got invalid unicode escape, expected `{{`")]
+    InvalidUnicodeMissingStartBrace,
+    #[error("got invalid unicode escape, expected `}}`")]
+    InvalidUnicodeMissingEndBrace,
+    #[error("got invalid escape character {0:?}")]
+    InvalidEscapeChar(char),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

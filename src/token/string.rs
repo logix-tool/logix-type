@@ -10,23 +10,20 @@ pub fn parse_basic<'a>(buf: &'a [u8], start: usize) -> ParseRes<'a> {
 
     while let Some(off) = buf[pos..].find_byteset(b"\\\"\n") {
         pos += off;
-        match buf[pos] {
-            b'"' => {
+        match buf.get(pos).copied() {
+            Some(b'"') => {
                 let token = from_utf8(&buf[start + 1..pos])
                     .map(|value| Token::Literal(Literal::Str(tag, value)))
                     .map_err(|_| TokenError::LitStrNotUtf8);
                 return ParseRes::new_res(start..pos + 1, 0, token);
             }
-            b'\\' => {
+            Some(b'\\') => {
                 tag = StrTag::Esc;
-                match buf.get(pos + 1) {
-                    Some(b't' | b'n' | b'r' | b'u' | b'x' | b'\\' | b'"') => pos += 2,
-                    Some(unk) => todo!("{unk:?} ({:?})", char::from(*unk)),
-                    None => todo!("unexpected end of file"),
-                }
+                pos += 2;
             }
-            b'\n' => todo!("Unexpected end of string"),
-            unk => unreachable!("{unk:?} ({:?}) is not in byteset", char::from(unk)),
+            Some(b'\n') => todo!("Unexpected end of string"),
+            Some(unk) => unreachable!("{unk:?} ({:?}) is not in byteset", char::from(unk)),
+            None => todo!("unexpected end of file"),
         }
     }
 
