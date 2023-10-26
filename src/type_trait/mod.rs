@@ -1,8 +1,9 @@
 mod impl_trait;
 
 pub use crate::{
-    error::{ParseError, Result, SourceSpan, Wanted, Warn},
+    error::{ParseError, Result, Wanted, Warn},
     parser::LogixParser,
+    span::SourceSpan,
     token::{Brace, Delim, Literal, StrTag, Token},
     Map, Str,
 };

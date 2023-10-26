@@ -1,8 +1,9 @@
 use std::ops::Range;
 
 use crate::{
-    error::{ParseError, Result, SourceSpan, Wanted, Warn},
+    error::{ParseError, Result, Wanted, Warn},
     loader::{CachedFile, LogixLoader},
+    span::SourceSpan,
     token::{parse_token, Brace, Delim, ParseRes, Token},
     type_trait::Value,
     LogixType,
@@ -105,7 +106,7 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
                     Ok(Token::Comment(_)) => {
                         continue 'ignore_token;
                     }
-                    unk => todo!("{unk:#?}"),
+                    Err(error) => Err(ParseError::TokenError { span, error }),
                 };
             }
         }

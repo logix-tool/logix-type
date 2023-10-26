@@ -11,13 +11,7 @@ pub(super) struct ByteSet(&'static str);
 
 use bstr::ByteSlice;
 
-use super::{Brace, Delim, Literal, Token};
-
-#[derive(Debug, thiserror::Error)]
-pub enum TokenError {
-    #[error("String literal is not valid utf-8")]
-    LitStrNotUtf8,
-}
+use super::{Brace, Delim, Literal, Token, TokenError};
 
 #[derive(Debug)]
 pub struct ParseRes<'a> {
@@ -94,7 +88,13 @@ pub fn parse_token<'a>(buf: &'a [u8]) -> ParseRes<'a> {
                 Token::Literal(Literal::Num(s))
             })
         }
-        Some(b'/') => super::comment::parse_comment(buf, start),
+        Some(b'/') => {
+            if let Some(ret) = super::comment::parse_comment(buf, start) {
+                ret
+            } else {
+                ParseRes::new_res(start..start + 1, 0, Err(TokenError::UnexpectedChar('/')))
+            }
+        }
         Some(b'{') => ParseRes::new_brace(start, true, Brace::Curly),
         Some(b'}') => ParseRes::new_brace(start, false, Brace::Curly),
         Some(b'(') => ParseRes::new_brace(start, true, Brace::Paren),

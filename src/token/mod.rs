@@ -1,9 +1,11 @@
 use std::fmt;
 
+use crate::error::TokenError;
+
 mod comment;
 mod parse;
 mod string;
-pub use parse::{parse_token, ParseRes, TokenError};
+pub use parse::{parse_token, ParseRes};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum StrTag {

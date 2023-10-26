@@ -1,8 +1,6 @@
-use crate::{loader::CachedFile, LogixLoader};
-use bstr::ByteSlice;
+pub use crate::span::SourceSpan;
 use core::fmt;
 use owo_colors::OwoColorize;
-use std::{borrow::Cow, ops::Range, path::Path};
 
 use logix_vfs::LogixVfs;
 use thiserror::Error;
@@ -10,6 +8,14 @@ use thiserror::Error;
 use crate::{token::Token, Str};
 
 pub type Result<T> = std::result::Result<T, ParseError>;
+
+#[derive(Error, PartialEq, Debug)]
+pub enum TokenError {
+    #[error("invalid utf-8 sequence")]
+    LitStrNotUtf8,
+    #[error("unexpected character {0:?}")]
+    UnexpectedChar(char),
+}
 
 #[derive(Error, PartialEq, Debug)]
 pub enum EscStrError {
@@ -27,81 +33,6 @@ pub enum EscStrError {
     InvalidUnicodeMissingEndBrace,
     #[error("got invalid escape character {0:?}")]
     InvalidEscapeChar(char),
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct SourceSpan {
-    file: CachedFile,
-    line: usize,
-    col: Range<u16>,
-}
-
-impl SourceSpan {
-    pub fn new_for_test(
-        loader: &LogixLoader<impl LogixVfs>,
-        path: impl AsRef<Path>,
-        line: usize,
-        col: usize,
-        len: usize,
-    ) -> Self {
-        Self::new(&loader.get_file(path).unwrap(), line, col, len)
-    }
-
-    pub(crate) fn new(file: &CachedFile, line: usize, col: usize, len: usize) -> Self {
-        let scol = u16::try_from(col).unwrap();
-        let ecol = u16::try_from(col + len).unwrap();
-        Self {
-            file: file.clone(),
-            line,
-            col: scol..ecol,
-        }
-    }
-
-    fn lines(
-        &self,
-        context: usize,
-    ) -> impl Iterator<Item = (usize, Option<Range<usize>>, Cow<str>)> {
-        self.file
-            .lines()
-            .enumerate()
-            .skip(self.line.saturating_sub(context + 1))
-            .map_while(move |(i, line)| {
-                let ln = i + 1;
-                if ln == self.line {
-                    Some((
-                        ln,
-                        Some(usize::from(self.col.start)..usize::from(self.col.end)),
-                        line.to_str_lossy(),
-                    ))
-                } else if ln <= self.line + context {
-                    Some((ln, None, line.to_str_lossy()))
-                } else {
-                    None
-                }
-            })
-    }
-
-    pub fn with_off(&self, off: usize, len: usize) -> Self {
-        let off = u16::try_from(off).unwrap();
-        let len = u16::try_from(len).unwrap();
-        Self {
-            file: self.file.clone(),
-            line: self.line,
-            col: self.col.start + off..self.col.start + off + len,
-        }
-    }
-}
-
-impl fmt::Display for SourceSpan {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}:{}:{}",
-            self.file.path().display(),
-            self.line,
-            self.col.start
-        )
-    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -167,6 +98,9 @@ pub enum ParseError {
         span: SourceSpan,
         error: EscStrError,
     },
+
+    #[error("Failed to parse input, {error} in {span}")]
+    TokenError { span: SourceSpan, error: TokenError },
 }
 
 impl ParseError {
@@ -217,6 +151,9 @@ impl fmt::Debug for ParseError {
             Self::StrEscError { span, error } => {
                 write_error(f, "Failed to parse escaped string", span, error)
             }
+            Self::TokenError { span, error } => {
+                write_error(f, "Failed to parse input", span, error)
+            }
         }
     }
 }
@@ -227,20 +164,21 @@ fn write_error(
     span: &SourceSpan,
     expected: impl fmt::Display,
 ) -> fmt::Result {
-    let ln_width = calc_ln_width(span.line + 1);
+    let context = 1;
+    let ln_width = span.calc_ln_width(context);
     writeln!(f, "{}{}", "error: ".bright_red().bold(), message.bold())?;
 
     writeln!(
         f,
         "   {} {}:{}:{}",
         "--->".bright_blue().bold(),
-        span.file.path().display(),
-        span.line,
-        span.col.start,
+        span.path().display(),
+        span.line(),
+        span.col(),
     )?;
     writeln!(f, "{:>ln_width$} {}", "", "|".bright_blue().bold(),)?;
 
-    for (ln, span, line) in span.lines(1) {
+    for (ln, span, line) in span.lines(context) {
         writeln!(
             f,
             "{:>ln_width$} {} {}",
@@ -275,16 +213,6 @@ pub struct LoaderError<'fs, FS: LogixVfs> {
 impl<'fs, FS: LogixVfs> fmt::Debug for LoaderError<'fs, FS> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.error)
-    }
-}
-
-fn calc_ln_width(i: usize) -> usize {
-    match i + 1 {
-        0..=999 => 3,
-        1000..=9999 => 4,
-        10000..=99999 => 5,
-        100000..=999999 => 6,
-        _ => 10,
     }
 }
 

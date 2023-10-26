@@ -1,9 +1,23 @@
-use std::str::from_utf8;
-
 use bstr::ByteSlice;
 
 use super::{Literal, ParseRes, StrTag, Token, TokenError};
 
+fn parse_utf8<'a>(
+    start: usize,
+    end: usize,
+    value: &'a [u8],
+    f: impl FnOnce(&'a str) -> ParseRes<'a>,
+) -> ParseRes<'a> {
+    std::str::from_utf8(value).map(f).unwrap_or_else(|e| {
+        let new_start = start + e.valid_up_to();
+        let extra = (start + end + 1) - new_start;
+        ParseRes::new_res(
+            new_start..new_start + 1,
+            extra,
+            Err(TokenError::LitStrNotUtf8),
+        )
+    })
+}
 pub fn parse_basic<'a>(buf: &'a [u8], start: usize) -> ParseRes<'a> {
     let mut pos = start + 1;
     let mut tag = StrTag::Raw;
@@ -12,10 +26,9 @@ pub fn parse_basic<'a>(buf: &'a [u8], start: usize) -> ParseRes<'a> {
         pos += off;
         match buf.get(pos).copied() {
             Some(b'"') => {
-                let token = from_utf8(&buf[start + 1..pos])
-                    .map(|value| Token::Literal(Literal::Str(tag, value)))
-                    .map_err(|_| TokenError::LitStrNotUtf8);
-                return ParseRes::new_res(start..pos + 1, 0, token);
+                return parse_utf8(start + 1, pos, &buf[start + 1..pos], |value| {
+                    ParseRes::new(start..pos + 1, Token::Literal(Literal::Str(tag, value)))
+                });
             }
             Some(b'\\') => {
                 tag = StrTag::Esc;
@@ -48,10 +61,10 @@ pub fn parse_tagged<'a>(buf: &'a [u8], start: usize) -> ParseRes<'a> {
     };
 
     if let Some((value, _)) = buf[pos..].split_once_str(suffix) {
-        let token = from_utf8(value)
-            .map(|v| Token::Literal(Literal::Str(tag, v)))
-            .map_err(|_| TokenError::LitStrNotUtf8);
-        ParseRes::new_lines(buf, start..pos + value.len() + suffix.len(), 0, token)
+        let end = pos + value.len() + suffix.len();
+        return parse_utf8(start + pos, end, value, |v| {
+            ParseRes::new_lines(buf, start..end, 0, Ok(Token::Literal(Literal::Str(tag, v))))
+        });
     } else {
         todo!("unexpected eof")
     }
