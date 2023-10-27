@@ -8,6 +8,7 @@ use crate::{loader::CachedFile, LogixLoader};
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SourceSpan {
     file: CachedFile,
+    pos: usize,
     line: usize,
     col: Range<u16>,
 }
@@ -20,14 +21,25 @@ impl SourceSpan {
         col: usize,
         len: usize,
     ) -> Self {
-        Self::new(&loader.get_file(path).unwrap(), line, col, len)
+        let file = loader.get_file(path).unwrap();
+        let mut pos = 0;
+        for (i, line_data) in file.data().lines_with_terminator().enumerate() {
+            if i + 1 == line {
+                pos += col;
+                break;
+            }
+            pos += line_data.len();
+        }
+
+        Self::new(&file, pos, line, col, len)
     }
 
-    pub(crate) fn new(file: &CachedFile, line: usize, col: usize, len: usize) -> Self {
+    pub(crate) fn new(file: &CachedFile, pos: usize, line: usize, col: usize, len: usize) -> Self {
         let scol = u16::try_from(col).unwrap();
         let ecol = u16::try_from(col + len).unwrap();
         Self {
             file: file.clone(),
+            pos,
             line,
             col: scol..ecol,
         }
@@ -43,6 +55,10 @@ impl SourceSpan {
 
     pub fn col(&self) -> usize {
         self.col.start.into()
+    }
+
+    pub fn value(&self) -> Cow<str> {
+        String::from_utf8_lossy(&self.file.data()[self.pos..self.pos + usize::from(self.col.len())])
     }
 
     pub fn lines(
@@ -74,6 +90,7 @@ impl SourceSpan {
         let len = u16::try_from(len).unwrap();
         Self {
             file: self.file.clone(),
+            pos: self.pos + usize::from(off),
             line: self.line,
             col: self.col.start + off..self.col.start + off + len,
         }

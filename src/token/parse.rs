@@ -122,8 +122,13 @@ pub fn parse_token<'a>(buf: &'a [u8]) -> ParseRes<'a> {
                 ParseRes::new_res(start..start + 1, 0, Err(TokenError::UnexpectedChar('#')))
             }
         }
-        Some(unk) => todo!("{unk:?}"),
-        None => ParseRes::new(buf.len()..buf.len(), Token::Newline(true)),
+        _ => {
+            if let Some((_, off, chr)) = buf[start..].char_indices().next() {
+                ParseRes::new_res(start..start + off, 0, Err(TokenError::UnexpectedChar(chr)))
+            } else {
+                ParseRes::new(buf.len()..buf.len(), Token::Newline(true))
+            }
+        }
     }
 }
 

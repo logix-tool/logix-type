@@ -213,7 +213,15 @@ fn write_error(
                 "",
                 "|".bright_blue().bold(),
                 "",
-                "^".repeat(span.len().max(1)).bright_red().bold(),
+                "^".repeat(
+                    line.get(span)
+                        .into_iter()
+                        .flat_map(|s| s.chars())
+                        .count()
+                        .max(1)
+                )
+                .bright_red()
+                .bold(),
                 expected.bright_red().bold(),
             )?;
         }

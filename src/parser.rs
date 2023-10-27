@@ -43,6 +43,7 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
     fn cur_span(&self, range: Range<usize>) -> SourceSpan {
         SourceSpan::new(
             &self.file,
+            self.cur_pos + range.start,
             self.cur_ln,
             self.cur_col + range.start,
             range.len(),
@@ -183,8 +184,8 @@ mod tests {
 
     use super::*;
 
-    fn s(file: &CachedFile, ln: usize, start: usize, len: usize) -> SourceSpan {
-        SourceSpan::new(&file, ln, start, len)
+    fn s(file: &CachedFile, pos: usize, ln: usize, start: usize, len: usize) -> SourceSpan {
+        SourceSpan::new(&file, pos, ln, start, len)
     }
 
     #[test]
@@ -197,33 +198,33 @@ mod tests {
         let f = &f;
         let mut p = LogixParser::new(&mut loader, f);
 
-        assert_eq!(p.next_token()?, (s(f, 1, 0, 5), Token::Ident("Hello")));
+        assert_eq!(p.next_token()?, (s(f, 0, 1, 0, 5), Token::Ident("Hello")));
         assert_eq!(
             p.next_token()?,
             (
-                s(f, 1, 6, 1),
+                s(f, 6, 1, 6, 1),
                 Token::Brace {
                     start: true,
                     brace: Brace::Curly
                 }
             )
         );
-        assert_eq!(p.next_token()?, (s(f, 1, 8, 5), Token::Ident("world")));
+        assert_eq!(p.next_token()?, (s(f, 8, 1, 8, 5), Token::Ident("world")));
         assert_eq!(
             p.next_token()?,
-            (s(f, 1, 13, 1), Token::Delim(Delim::Colon))
+            (s(f, 13, 1, 13, 1), Token::Delim(Delim::Colon))
         );
         assert_eq!(
             p.next_token()?,
             (
-                s(f, 1, 15, 5),
+                s(f, 15, 1, 15, 5),
                 Token::Literal(Literal::Str(StrTag::Raw, "!!!"))
             )
         );
         assert_eq!(
             p.next_token()?,
             (
-                s(f, 1, 21, 1),
+                s(f, 21, 1, 21, 1),
                 Token::Brace {
                     start: false,
                     brace: Brace::Curly
@@ -231,7 +232,7 @@ mod tests {
             )
         );
 
-        assert_eq!(p.next_token()?, (s(f, 1, 22, 0), Token::Newline(true)));
+        assert_eq!(p.next_token()?, (s(f, 22, 1, 22, 0), Token::Newline(true)));
         Ok(())
     }
 }

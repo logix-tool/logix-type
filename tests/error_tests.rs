@@ -402,3 +402,65 @@ fn one_member_tuple_want_litstr() {
         "Unexpected `)` while parsing `string`, expected string in test.logix:1:10"
     );
 }
+
+#[test]
+fn unknown_character_tilde() {
+    let mut l = Loader::init().with_file("test.logix", b"Tuple(10, ~)");
+    let e = l.parse_tuple("test.logix");
+
+    assert_eq!(
+        e,
+        ParseError::TokenError {
+            span: l.span("test.logix", 1, 10, 1),
+            error: TokenError::UnexpectedChar('~')
+        }
+    );
+
+    assert_eq!(
+        debval(&e),
+        concat!(
+            "\n",
+            "error: Failed to parse input\n",
+            "   ---> test.logix:1:10\n",
+            "    |\n",
+            "  1 | Tuple(10, ~)\n",
+            "    |           ^ unexpected character '~'\n",
+        )
+    );
+
+    assert_eq!(
+        disval(&e),
+        "Failed to parse input, unexpected character '~' in test.logix:1:10"
+    );
+}
+
+#[test]
+fn unknown_character_smiley() {
+    let mut l = Loader::init().with_file("test.logix", "Tuple(10, \u{01f60e})".as_bytes());
+    let e = l.parse_tuple("test.logix");
+
+    assert_eq!(
+        e,
+        ParseError::TokenError {
+            span: l.span("test.logix", 1, 10, 4),
+            error: TokenError::UnexpectedChar('\u{01f60e}')
+        }
+    );
+
+    assert_eq!(
+        debval(&e),
+        concat!(
+            "\n",
+            "error: Failed to parse input\n",
+            "   ---> test.logix:1:10\n",
+            "    |\n",
+            "  1 | Tuple(10, \u{01f60e})\n",
+            "    |           ^ unexpected character '\u{01f60e}'\n",
+        )
+    );
+
+    assert_eq!(
+        disval(&e),
+        "Failed to parse input, unexpected character '\u{01f60e}' in test.logix:1:10"
+    );
+}
