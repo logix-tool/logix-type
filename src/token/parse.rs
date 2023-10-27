@@ -11,7 +11,7 @@ use bstr::ByteSlice;
 
 use super::{Brace, ByteSet, Delim, Literal, Token, TokenError};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct ParseRes<'a> {
     /// How much to skip before the next parse_token call
     pub len: usize,
@@ -125,76 +125,25 @@ pub fn parse_token<'a>(buf: &'a [u8]) -> ParseRes<'a> {
         Some(unk) => todo!("{unk:?}"),
         None => ParseRes::new(buf.len()..buf.len(), Token::Newline(true)),
     }
-    /*
-    Self::Comment(level) => {
-        let start = buf.len() - it.as_bytes().len();
-        let mut cur = start;
+}
 
-        while let Some(off) = buf[cur..].find_byteset(b"/*") {
-            match buf.get(cur + off..cur + off + 2) {
-                Some(b"/*") => {
-                    *level += 1;
-                    cur += off + 2;
-                }
-                Some(b"*/
-    ") if *level == 0 => {
-                            cur += off;
-                            *self = Self::Normal;
-                            return Ok((
-                                start..cur,
-                                cur + 2,
-                                Token::CommentChunk {
-                                    chunk: from_utf8(&buf[start..cur]).unwrap(),
-                                    last: true,
-                                },
-                            ));
-                        }
-                        Some(b"*/") => {
-                            *level -= 1;
-                            cur += off + 2;
-                        }
-                        _ => {
-                            cur += off + 1;
-                        }
-                    }
-                }
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-                // Need to look at the next line
-                return Ok((
-                    start..buf.len(),
-                    buf.len(), // TODO(2023.10): Not sure this is correct
-                    Token::CommentChunk {
-                        chunk: from_utf8(it.as_bytes()).unwrap(),
-                        last: false,
-                    },
-                ));
+    #[test]
+    fn basics() {
+        assert_eq!(
+            parse_token(b"{"),
+            ParseRes {
+                len: 1,
+                range: 0..1,
+                lines: 0,
+                token: Ok(Token::Brace {
+                    start: true,
+                    brace: Brace::Curly
+                }),
             }
-            &mut Self::TaggedStr(ref suff, tag) => {
-                let start = buf.len() - it.as_bytes().len();
-
-                if let Some(end) = it.as_bytes().find(suff.as_bytes()) {
-                    let suff_len = suff.len();
-                    *self = Self::Normal;
-                    return Ok((
-                        start..start + end,
-                        start + end + suff_len,
-                        Token::TaggedStrChunk {
-                            tag,
-                            chunk: from_utf8(&buf[start..end]).unwrap(),
-                            last: true,
-                        },
-                    ));
-                } else {
-                    return Ok((
-                        start..buf.len(),
-                        buf.len(),
-                        Token::TaggedStrChunk {
-                            tag,
-                            chunk: from_utf8(&buf[start..]).unwrap(),
-                            last: false,
-                        },
-                    ));
-                }
-            }
-*/
+        );
+    }
 }
