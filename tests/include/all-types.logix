@@ -60,4 +60,9 @@ Root {
   esc_str: "LF: \n, Tab: \t, CR: \r, Unicode: \u{a4}, Backslash: \\, Quote: \", Hex: \x20"
   very_long_escape1: ###################################txt"it works"###################################
   very_long_escape2: ###################################txt"it "################################## works"###################################
+  tagged_strings: {
+    raw: #raw"this is \n raw"#
+    esc: #esc"this is \n esc"#
+    txt: #txt"this is \n txt"#
+  }
 }

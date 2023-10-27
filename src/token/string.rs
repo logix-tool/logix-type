@@ -59,8 +59,8 @@ pub fn parse_tagged<'a>(buf: &'a [u8], start: usize) -> Option<ParseRes<'a>> {
     let tag = if let Some((off, tag)) = StrTag::from_prefix(&buf[pos..]) {
         pos += off;
         tag
-    } else if let Some(off) = buf[pos..].find_not_byteset(StrTag::VALID.0) {
-        let end = pos + off;
+    } else {
+        let end = buf[pos..].find_not_byteset(StrTag::VALID.0)? + pos;
         let tag = Str::new(std::str::from_utf8(&buf[pos..end]).unwrap());
         match buf[end] {
             b'"' => {
@@ -73,8 +73,6 @@ pub fn parse_tagged<'a>(buf: &'a [u8], start: usize) -> Option<ParseRes<'a>> {
             // NOTE(2023.10): It is not a string, return None to let the caller figure out what to do
             _ => return None,
         }
-    } else {
-        todo!()
     };
 
     if let Some((value, _)) = buf[pos..].split_once_str(&suffix) {

@@ -1,9 +1,9 @@
 use std::fmt;
 
 use logix_type::{
-    error::{EscStrError, ParseError, SourceSpan, Wanted},
+    error::{EscStrError, ParseError, SourceSpan, TokenError, Wanted},
     LogixLoader, LogixType,
-    __private::{Delim, Token},
+    __private::{Delim, StrTag, StrTagSuffix, Token},
 };
 use logix_vfs::RelFs;
 

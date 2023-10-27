@@ -27,7 +27,11 @@ impl StrTag {
     const VALID: ByteSet = ByteSet("abcdefghijklmnopqrstuvwxyz0123456789-_");
 
     fn from_prefix(buf: &[u8]) -> Option<(usize, Self)> {
-        if buf.starts_with(b"txt\"") {
+        if buf.starts_with(b"raw\"") {
+            Some((4, Self::Raw))
+        } else if buf.starts_with(b"esc\"") {
+            Some((4, Self::Esc))
+        } else if buf.starts_with(b"txt\"") {
             Some((4, Self::Txt))
         } else {
             None
@@ -163,17 +167,74 @@ impl<'a> Token<'a> {
             Self::Comment(..) => "comment",
         }
     }
-}
 
-impl<'a> fmt::Display for Token<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    pub fn write_token_display_name(&self, f: &mut impl fmt::Write) -> fmt::Result {
         match self {
             Self::Ident(value) => write!(f, "`{value}`"),
-            Self::Literal(..) => todo!(),
-            Self::Comment(..) => todo!(),
-            Self::Brace { .. } | Self::Delim(..) | Self::Newline(..) => {
+            Self::Literal(Literal::Num(num)) => write!(f, "`{num}`"),
+            Self::Brace { .. }
+            | Self::Delim(..)
+            | Self::Newline(..)
+            | Self::Literal(Literal::Str(..))
+            | Self::Comment(..) => {
                 write!(f, "{}", self.token_type_name())
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn print_comment_token_type() {
+        // NOTE(2023.10): I haven't found a way to print it in external tests so doing it directly
+        let token = Token::Comment("hello");
+        assert_eq!(token.token_type_name().to_string(), "comment");
+        {
+            let mut s = String::new();
+            token.write_token_display_name(&mut s).unwrap();
+            assert_eq!(s, "comment");
+        }
+    }
+
+    #[test]
+    fn print_number_token_type() {
+        // NOTE(2023.10): I haven't found a way to print it in external tests so doing it directly
+        let token = Token::Literal(Literal::Num("10"));
+        assert_eq!(token.token_type_name().to_string(), "number");
+        {
+            let mut s = String::new();
+            token.write_token_display_name(&mut s).unwrap();
+            assert_eq!(s, "`10`");
+        }
+    }
+
+    #[test]
+    fn print_str_token_type() {
+        // NOTE(2023.10): I haven't found a way to print it in external tests so doing it directly
+        let token = Token::Literal(Literal::Str(StrTag::Raw, "aa"));
+        assert_eq!(token.token_type_name().to_string(), "string");
+        {
+            let mut s = String::new();
+            token.write_token_display_name(&mut s).unwrap();
+            assert_eq!(s, "string");
+        }
+    }
+
+    #[test]
+    fn print_brace_token_type() {
+        // NOTE(2023.10): I haven't found a way to print it in external tests so doing it directly
+        let token = Token::Brace {
+            start: true,
+            brace: Brace::Curly,
+        };
+        assert_eq!(token.token_type_name().to_string(), "`{`");
+        {
+            let mut s = String::new();
+            token.write_token_display_name(&mut s).unwrap();
+            assert_eq!(s, "`{`");
         }
     }
 }

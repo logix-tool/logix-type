@@ -23,6 +23,7 @@ struct Root {
     esc_str: String,
     very_long_escape1: String,
     very_long_escape2: String,
+    tagged_strings: Map<String>,
 }
 
 #[derive(logix_type::LogixType, PartialEq, Debug)]
@@ -112,6 +113,11 @@ fn expected_root() -> Root {
         esc_str: "LF: \n, Tab: \t, CR: \r, Unicode: \u{a4}, Backslash: \\, Quote: \", Hex: \x20".into(),
         very_long_escape1: "it works".into(),
         very_long_escape2: "it \"################################## works".into(),
+        tagged_strings: [
+            (Str::new("raw"), "this is \\n raw".to_owned()),
+            (Str::new("esc"), "this is \n esc".to_owned()),
+            (Str::new("txt"), "this is \\n txt".to_owned()),
+        ].into(),
     }
 }
 
@@ -136,6 +142,7 @@ fn load_and_compare(loader: &mut LogixLoader<impl LogixVfs>) -> Result<()> {
         esc_str,
         very_long_escape1,
         very_long_escape2,
+        tagged_strings,
     } = loader.load_file("all-types.logix")?;
     assert_eq!(type_i8, expected.type_i8);
     assert_eq!(type_u8, expected.type_u8);
@@ -165,6 +172,14 @@ fn load_and_compare(loader: &mut LogixLoader<impl LogixVfs>) -> Result<()> {
     assert_eq!(esc_str, expected.esc_str);
     assert_eq!(very_long_escape1, expected.very_long_escape1);
     assert_eq!(very_long_escape2, expected.very_long_escape2);
+
+    {
+        let mut exp_it = expected.tagged_strings.iter().peekable();
+        let mut got_it = tagged_strings.iter().peekable();
+        while exp_it.peek().is_some() || got_it.peek().is_some() {
+            assert_eq!(exp_it.next(), got_it.next())
+        }
+    }
     Ok(())
 }
 
