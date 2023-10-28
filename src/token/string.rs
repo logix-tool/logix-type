@@ -20,7 +20,7 @@ fn parse_utf8<'a>(
         )
     })
 }
-pub fn parse_basic<'a>(buf: &'a [u8], start: usize) -> ParseRes<'a> {
+pub fn parse_basic(buf: &[u8], start: usize) -> ParseRes {
     let mut pos = start + 1;
     let mut tag = StrTag::Raw;
 
@@ -54,7 +54,7 @@ pub fn parse_basic<'a>(buf: &'a [u8], start: usize) -> ParseRes<'a> {
     )
 }
 
-pub fn parse_tagged<'a>(buf: &'a [u8], start: usize) -> Option<ParseRes<'a>> {
+pub fn parse_tagged(buf: &[u8], start: usize) -> Option<ParseRes> {
     let num_hashes = buf[start..].find_not_byteset(b"#").unwrap();
     let suffix = StrTagSuffix::new(num_hashes);
 

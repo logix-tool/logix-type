@@ -39,7 +39,7 @@ impl StrTag {
     }
 }
 
-impl<'a> fmt::Display for StrTag {
+impl fmt::Display for StrTag {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Raw => write!(f, "`#raw`"),
@@ -78,7 +78,7 @@ impl AsRef<[u8]> for StrTagSuffix {
     }
 }
 
-impl<'a> fmt::Display for StrTagSuffix {
+impl fmt::Display for StrTagSuffix {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "`{}`", self.0)
     }

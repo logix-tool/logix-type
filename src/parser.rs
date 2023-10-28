@@ -42,7 +42,7 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
 
     fn cur_span(&self, range: Range<usize>) -> SourceSpan {
         SourceSpan::new(
-            &self.file,
+            self.file,
             self.cur_pos + range.start,
             self.cur_ln,
             self.cur_col + range.start,
@@ -79,8 +79,7 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
                         } else {
                             self.cur_col = self.file.data()[..self.cur_pos]
                                 .lines()
-                                .rev()
-                                .next()
+                                .next_back()
                                 .unwrap()
                                 .len();
                         }

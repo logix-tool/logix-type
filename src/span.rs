@@ -66,7 +66,7 @@ impl SourceSpan {
     }
 
     pub fn value(&self) -> Cow<str> {
-        String::from_utf8_lossy(&self.file.data()[self.pos..self.pos + usize::from(self.col.len())])
+        String::from_utf8_lossy(&self.file.data()[self.pos..self.pos + self.col.len()])
     }
 
     pub fn lines(

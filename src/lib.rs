@@ -1,3 +1,6 @@
+#![deny(warnings, clippy::all)]
+#![allow(clippy::len_without_is_empty)]
+
 pub mod error;
 mod loader;
 mod parser;

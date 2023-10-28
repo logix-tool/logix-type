@@ -4,7 +4,7 @@ use bstr::ByteSlice;
 
 use super::{ParseRes, Token, TokenError};
 
-pub fn parse_comment<'a>(buf: &'a [u8], start: usize) -> Option<ParseRes<'a>> {
+pub fn parse_comment(buf: &[u8], start: usize) -> Option<ParseRes> {
     if let Some(cur) = buf[start..].strip_prefix(b"//") {
         let comment = cur.lines().next().unwrap();
         Some(ParseRes::new(

@@ -1,3 +1,5 @@
+#![deny(warnings, clippy::all)]
+
 mod derive_enum;
 mod derive_struct;
 

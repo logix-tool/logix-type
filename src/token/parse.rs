@@ -64,7 +64,7 @@ impl<'a> ParseRes<'a> {
     ) -> Self {
         let len = buf[start..]
             .find_not_byteset(byteset.0)
-            .unwrap_or_else(|| buf.len() - start);
+            .unwrap_or(buf.len() - start);
         let end = start + len;
         ParseRes::new(start..end, f(from_utf8(&buf[start..end]).unwrap()))
     }
@@ -74,7 +74,7 @@ impl<'a> ParseRes<'a> {
     }
 }
 
-pub fn parse_token<'a>(buf: &'a [u8]) -> ParseRes<'a> {
+pub fn parse_token(buf: &[u8]) -> ParseRes {
     let start = buf.find_not_byteset(b" \t").unwrap_or(0);
 
     match buf.get(start) {
@@ -106,7 +106,7 @@ pub fn parse_token<'a>(buf: &'a [u8]) -> ParseRes<'a> {
         Some(b'\n') => {
             let off = buf[start..]
                 .find_not_byteset("\r\n \t")
-                .unwrap_or_else(|| buf.len() - start);
+                .unwrap_or(buf.len() - start);
             ParseRes::new_lines(
                 buf,
                 start..start,
