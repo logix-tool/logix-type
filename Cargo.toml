@@ -28,5 +28,6 @@ tempfile = "3.8.1"
 
 [workspace]
 members = [
-  "derive"
+  "derive",
+  "xtask",
 ]
