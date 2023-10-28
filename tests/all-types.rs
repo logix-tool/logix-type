@@ -204,11 +204,33 @@ fn just_load() -> Result<()> {
 }
 
 #[test]
+fn starting_line_comment() -> Result<()> {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(
+        dir.path().join("all-types.logix"),
+        format!("// Start with a line-comment\n{ALL_TYPES_FILE}"),
+    )
+    .unwrap();
+    load_and_compare(&mut LogixLoader::new(RelFs::new(dir.path())))
+}
+
+#[test]
 fn terminating_line_comment() -> Result<()> {
     let dir = tempfile::tempdir().unwrap();
     std::fs::write(
         dir.path().join("all-types.logix"),
         format!("{ALL_TYPES_FILE} // End in a line-comment"),
+    )
+    .unwrap();
+    load_and_compare(&mut LogixLoader::new(RelFs::new(dir.path())))
+}
+
+#[test]
+fn starting_multiline_comment() -> Result<()> {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(
+        dir.path().join("all-types.logix"),
+        format!("/*\nStart with a multi-line comment\n*/ {ALL_TYPES_FILE}"),
     )
     .unwrap();
     load_and_compare(&mut LogixLoader::new(RelFs::new(dir.path())))
@@ -226,11 +248,33 @@ fn terminating_multiline_comment() -> Result<()> {
 }
 
 #[test]
+fn starting_eols() -> Result<()> {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(
+        dir.path().join("all-types.logix"),
+        format!("\n\n\n\n\n\n\n{ALL_TYPES_FILE}"),
+    )
+    .unwrap();
+    load_and_compare(&mut LogixLoader::new(RelFs::new(dir.path())))
+}
+
+#[test]
 fn terminating_eols() -> Result<()> {
     let dir = tempfile::tempdir().unwrap();
     std::fs::write(
         dir.path().join("all-types.logix"),
         format!("{ALL_TYPES_FILE}\n\n\n\n\n\n\n"),
+    )
+    .unwrap();
+    load_and_compare(&mut LogixLoader::new(RelFs::new(dir.path())))
+}
+
+#[test]
+fn starting_spaces() -> Result<()> {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(
+        dir.path().join("all-types.logix"),
+        format!("   \n  \n \t\t  \n  \n\n\n\n{ALL_TYPES_FILE}"),
     )
     .unwrap();
     load_and_compare(&mut LogixLoader::new(RelFs::new(dir.path())))

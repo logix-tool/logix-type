@@ -30,7 +30,7 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
             cur_pos: 0,
             cur_col: 0,
             cur_ln: 1,
-            last_was_newline: false,
+            last_was_newline: true,
             eof: false,
         }
     }
