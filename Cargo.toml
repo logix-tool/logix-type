@@ -16,15 +16,15 @@ categories = ["parsing", "config", "parser-implementations"]
 bstr = "1.7.0"
 indexmap = "2.0.2"
 logix-type-derive = { path = "derive" }
-logix-vfs = "0.4.0"
+logix-vfs = "0.5.0"
 owo-colors = { version = "4.0.0-rc.1", features = ["alloc"] }
 smol_str = "0.2.0"
 textwrap = "0.16.0"
-thiserror = "1.0.49"
+thiserror = "1.0.50"
 
 [dev-dependencies]
 strip-ansi-escapes = "0.2.0"
-tempfile = "3.8.0"
+tempfile = "3.8.1"
 
 [workspace]
 members = [

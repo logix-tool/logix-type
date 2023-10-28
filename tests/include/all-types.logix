@@ -65,4 +65,5 @@ Root {
     esc: #esc"this is \n esc"#
     txt: #txt"this is \n txt"#
   }
+  simple_enum: This
 }

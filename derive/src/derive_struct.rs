@@ -1,11 +1,15 @@
 use crate::{Shared, TokenStream2};
 use quote::quote;
 
-pub(crate) fn do_any(shared: &Shared, fields: syn::Fields) -> (TokenStream2, TokenStream2) {
+pub(crate) fn do_any(
+    shared: &Shared,
+    fields: syn::Fields,
+    skip_struct_ident: bool,
+) -> (TokenStream2, TokenStream2) {
     match fields {
-        syn::Fields::Named(fields) => do_named(shared, fields),
-        syn::Fields::Unnamed(fields) => do_unnamed(shared, fields),
-        syn::Fields::Unit => do_unit(shared),
+        syn::Fields::Named(fields) => do_named(shared, fields, skip_struct_ident),
+        syn::Fields::Unnamed(fields) => do_unnamed(shared, fields, skip_struct_ident),
+        syn::Fields::Unit => do_unit(shared, skip_struct_ident),
     }
 }
 
@@ -16,7 +20,14 @@ pub(crate) fn do_unit(
         type_name,
         cr,
     }: &Shared,
+    skip_struct_ident: bool,
 ) -> (TokenStream2, TokenStream2) {
+    let req_struct_ident = if skip_struct_ident {
+        quote!()
+    } else {
+        quote!(let type_name_span = p.req_token(#type_name_str, Token::Ident(#type_name_str))?;)
+    };
+
     (
         quote!(
             #cr::LogixValueDescriptor::Struct {
@@ -24,7 +35,7 @@ pub(crate) fn do_unit(
             }
         ),
         quote!(
-            let type_name_span = p.req_token(#type_name_str, Token::Ident(#type_name_str))?;
+            #req_struct_ident
             Ok(#cr::Value {
                 value: #prefix #type_name,
                 span: type_name_span,
@@ -41,6 +52,7 @@ pub(crate) fn do_named(
         cr,
     }: &Shared,
     fields: syn::FieldsNamed,
+    skip_struct_ident: bool,
 ) -> (TokenStream2, TokenStream2) {
     let mut members_desc = Vec::new();
     let mut member_names = Vec::new();
@@ -49,6 +61,12 @@ pub(crate) fn do_named(
     let mut member_tmp_init = Vec::new();
     let mut member_tmp_parse = Vec::new();
     let mut member_tmp_assign = Vec::new();
+
+    let req_struct_ident = if skip_struct_ident {
+        quote!()
+    } else {
+        quote!(let type_name_span = p.req_token(#type_name_str, Token::Ident(#type_name_str))?;)
+    };
 
     for field in fields.named {
         let fname = field.ident.unwrap();
@@ -85,52 +103,45 @@ pub(crate) fn do_named(
             }
         ),
         quote!(
-            match p.next_token()? {
-                (type_name_span, Token::Ident(#type_name_str)) => {
-                    struct Tmp {
-                        #(#member_names: Option<#member_tmp_types>,)*
-                    }
-                    let mut tmp = Tmp {
-                        #(#member_names: #member_tmp_init,)*
-                    };
-
-                    let mut curly_span = p.req_token(#type_name_str, Token::Brace { start: true, brace: Brace::Curly })?;
-                    p.req_token(#type_name_str, Token::Newline(false))?;
-                    'parse_members: loop {
-                        match p.next_token()? {
-                            #((span, Token::Ident(#member_str_names)) => {
-                                p.req_token(#type_name_str, Token::Delim(Delim::Colon))?;
-                                #member_tmp_parse;
-                                p.req_token(#type_name_str, Token::Newline(false))?;
-                            })*
-                            (span, Token::Brace { start: false, brace: Brace::Curly }) => {
-                                curly_span = span;
-                                break 'parse_members;
-                            }
-                            (span, token) => return Err(ParseError::UnexpectedToken {
-                                span,
-                                while_parsing: #type_name_str,
-                                wanted: Wanted::Tokens(&[
-                                    Token::Brace { start: false, brace: Brace::Curly },
-                                    #(Token::Ident(#member_str_names),)*
-                                ]),
-                                got_token: token.token_type_name(),
-                            }),
-                        }
-                    }
-                    Ok(#cr::Value {
-                        value: #prefix #type_name {
-                            #(#member_names: #member_tmp_assign,)*
-                        },
-                        span: type_name_span,
-                    })
+            #req_struct_ident
+            {
+                struct Tmp {
+                    #(#member_names: Option<#member_tmp_types>,)*
                 }
-                (span, token) => Err(ParseError::UnexpectedToken {
-                    span,
-                    while_parsing: #type_name_str,
-                    wanted: Wanted::Token(Token::Ident(#type_name_str)),
-                    got_token: token.token_type_name(),
-                }),
+                let mut tmp = Tmp {
+                    #(#member_names: #member_tmp_init,)*
+                };
+
+                let mut curly_span = p.req_token(#type_name_str, Token::Brace { start: true, brace: Brace::Curly })?;
+                p.req_token(#type_name_str, Token::Newline(false))?;
+                'parse_members: loop {
+                    match p.next_token()? {
+                        #((span, Token::Ident(#member_str_names)) => {
+                            p.req_token(#type_name_str, Token::Delim(Delim::Colon))?;
+                            #member_tmp_parse;
+                            p.req_token(#type_name_str, Token::Newline(false))?;
+                        })*
+                        (span, Token::Brace { start: false, brace: Brace::Curly }) => {
+                            curly_span = span;
+                            break 'parse_members;
+                        }
+                        (span, token) => return Err(ParseError::UnexpectedToken {
+                            span,
+                            while_parsing: #type_name_str,
+                            wanted: Wanted::Tokens(&[
+                                Token::Brace { start: false, brace: Brace::Curly },
+                                #(Token::Ident(#member_str_names),)*
+                            ]),
+                            got_token: token.token_type_name(),
+                        }),
+                    }
+                }
+                Ok(#cr::Value {
+                    value: #prefix #type_name {
+                        #(#member_names: #member_tmp_assign,)*
+                    },
+                    span: type_name_span,
+                })
             }
         ),
     )
@@ -144,11 +155,18 @@ pub(crate) fn do_unnamed(
         cr,
     }: &Shared,
     fields: syn::FieldsUnnamed,
+    skip_struct_ident: bool,
 ) -> (TokenStream2, TokenStream2) {
     let mut members_desc = Vec::new();
     let mut member_indices = Vec::new();
     let mut member_str_names = Vec::new();
     let mut member_parse = Vec::new();
+
+    let req_struct_ident = if skip_struct_ident {
+        quote!()
+    } else {
+        quote!(let type_name_span = p.req_token(#type_name_str, Token::Ident(#type_name_str))?;)
+    };
 
     for (i, field) in fields.unnamed.into_iter().enumerate() {
         let ty = field.ty;
@@ -168,7 +186,7 @@ pub(crate) fn do_unnamed(
             }
         ),
         quote!(
-            let type_name_span = p.req_token(#type_name_str, Token::Ident(#type_name_str))?;
+            #req_struct_ident
             p.req_token(#type_name_str, Token::Brace { start: true, brace: Brace::Paren })?;
             Ok(#cr::Value {
                 value: #prefix #type_name (

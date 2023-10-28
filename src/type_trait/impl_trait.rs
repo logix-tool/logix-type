@@ -58,13 +58,18 @@ macro_rules! impl_for_int {
             };
 
             fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<Self>> {
-                Ok(match p.next_token()? {
-                    (span, Token::Literal(Literal::Num(num))) => Value {
+                match p.next_token()? {
+                    (span, Token::Literal(Literal::Num(num))) => Ok(Value {
                         value: num.parse().unwrap(), // TODO(2023.10): Return a sensible error
                         span,
-                    },
-                    unk => todo!("{unk:#?}"),
-                })
+                    }),
+                    (span, token) => Err(ParseError::UnexpectedToken {
+                        span,
+                        got_token: token.token_type_name(),
+                        wanted: Wanted::LitNum(concat!($signed, " integer")),
+                        while_parsing: Self::DESCRIPTOR.name,
+                    }),
+                }
             }
         }
     )*};

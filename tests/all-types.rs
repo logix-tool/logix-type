@@ -4,6 +4,12 @@ use logix_vfs::{LogixVfs, RelFs};
 static ALL_TYPES_FILE: &str = include_str!("include/all-types.logix");
 
 #[derive(logix_type::LogixType, PartialEq, Debug)]
+enum SimpleEnum {
+    This,
+    OrThis,
+}
+
+#[derive(logix_type::LogixType, PartialEq, Debug)]
 struct Root {
     type_i8: i8,
     type_u8: u8,
@@ -24,6 +30,7 @@ struct Root {
     very_long_escape1: String,
     very_long_escape2: String,
     tagged_strings: Map<String>,
+    simple_enum: SimpleEnum,
 }
 
 #[derive(logix_type::LogixType, PartialEq, Debug)]
@@ -118,6 +125,7 @@ fn expected_root() -> Root {
             (Str::new("esc"), "this is \n esc".to_owned()),
             (Str::new("txt"), "this is \\n txt".to_owned()),
         ].into(),
+        simple_enum: SimpleEnum::This,
     }
 }
 
@@ -143,6 +151,7 @@ fn load_and_compare(loader: &mut LogixLoader<impl LogixVfs>) -> Result<()> {
         very_long_escape1,
         very_long_escape2,
         tagged_strings,
+        simple_enum,
     } = loader.load_file("all-types.logix")?;
     assert_eq!(type_i8, expected.type_i8);
     assert_eq!(type_u8, expected.type_u8);
@@ -180,6 +189,8 @@ fn load_and_compare(loader: &mut LogixLoader<impl LogixVfs>) -> Result<()> {
             assert_eq!(exp_it.next(), got_it.next())
         }
     }
+
+    assert_eq!(simple_enum, expected.simple_enum);
     Ok(())
 }
 

@@ -1,9 +1,9 @@
 use std::fmt;
 
 use logix_type::{
-    error::{EscStrError, ParseError, SourceSpan, TokenError, Wanted},
-    LogixLoader, LogixType,
-    __private::{Delim, StrTag, StrTagSuffix, Token},
+    error::{EscStrError, ParseError, SourceSpan, TokenError, Wanted, Warn},
+    LogixLoader, LogixType, Map, Str,
+    __private::{Brace, Delim, StrTag, StrTagSuffix, Token},
 };
 use logix_vfs::RelFs;
 
@@ -127,7 +127,7 @@ fn two_types() {
             "    |\n",
             "  4 | }\n",
             "  5 | Struct {\n",
-            "    | ^^^^^^ Expected end of file\n",
+            "    | ^^^^^^ expected end of file\n",
             "  6 |   aaa: 60\n",
         )
     );
@@ -161,7 +161,7 @@ fn unclosed_curly_brace() {
             "   ---> test.logix:1:8\n",
             "    |\n",
             "  1 | Struct {\n",
-            "    |         ^ Expected newline\n",
+            "    |         ^ expected newline\n",
         )
     );
 
@@ -194,7 +194,7 @@ fn no_newline() {
             "   ---> test.logix:1:8\n",
             "    |\n",
             "  1 | Struct {}\n",
-            "    |         ^ Expected newline\n",
+            "    |         ^ expected newline\n",
         )
     );
 
@@ -227,7 +227,7 @@ fn no_members() {
             "    |\n",
             "  1 | Struct {\n",
             "  2 | }\n",
-            "    | ^ Expected `aaa`\n",
+            "    | ^ expected `aaa`\n",
         )
     );
 
@@ -260,7 +260,7 @@ fn one_member_a() {
             "    |\n",
             "  2 |   aaa: 10\n",
             "  3 | }\n",
-            "    | ^ Expected `bbbb`\n",
+            "    | ^ expected `bbbb`\n",
         )
     );
 
@@ -293,7 +293,7 @@ fn one_member_b() {
             "    |\n",
             "  2 |   bbbb: \"yo\"\n",
             "  3 | }\n",
-            "    | ^ Expected `aaa`\n",
+            "    | ^ expected `aaa`\n",
         )
     );
 
@@ -326,7 +326,7 @@ fn duplicate_member() {
             "    |\n",
             "  2 |   aaa: 20\n",
             "  3 |   aaa: 30\n",
-            "    |   ^^^ Unexpected `aaa`\n",
+            "    |   ^^^ unexpected `aaa`\n",
             "  4 | }\n",
         )
     );
@@ -360,7 +360,7 @@ fn one_member_tuple_want_comma() {
             "   ---> test.logix:1:8\n",
             "    |\n",
             "  1 | Tuple(10)\n",
-            "    |         ^ Expected `,`\n",
+            "    |         ^ expected `,`\n",
         )
     );
 
@@ -393,7 +393,7 @@ fn one_member_tuple_want_litstr() {
             "   ---> test.logix:1:10\n",
             "    |\n",
             "  1 | Tuple(10, )\n",
-            "    |           ^ Expected string\n",
+            "    |           ^ expected string\n",
         )
     );
 
@@ -462,5 +462,174 @@ fn unknown_character_smiley() {
     assert_eq!(
         disval(&e),
         "Failed to parse input, unexpected character '\u{01f60e}' in test.logix:1:10"
+    );
+}
+
+#[test]
+fn duplicate_map_entry() {
+    let mut l = Loader::init().with_file("test.logix", "{\n  a: 1\n  a: 2\n}".as_bytes());
+    let e = l.parse_file::<Map<u32>>("test.logix");
+
+    assert_eq!(
+        e,
+        ParseError::Warning(Warn::DuplicateMapEntry {
+            span: l.span("test.logix", 3, 2, 1),
+            key: Str::new("a"),
+        })
+    );
+
+    assert_eq!(
+        debval(&e),
+        concat!(
+            "\n",
+            "error: Duplicate entry `a` while parsing `Map`\n",
+            "   ---> test.logix:3:2\n",
+            "    |\n",
+            "  2 |   a: 1\n",
+            "  3 |   a: 2\n",
+            "    |   ^ overwrites the previous entry\n",
+            "  4 | }\n",
+        )
+    );
+
+    assert_eq!(
+        disval(&e),
+        "Duplicate entry `a` while parsing `Map`, overwrites the previous entry in test.logix:3:2"
+    );
+}
+
+#[test]
+fn missing_members4() {
+    #[derive(LogixType, Debug)]
+    struct Struct4 {
+        _a: i32,
+        _b: i32,
+        _c: i32,
+        _d: i32,
+    }
+    let mut l = Loader::init().with_file("test.logix", "Struct4 {\n  x: 1\n}".as_bytes());
+    let e = l.parse_file::<Struct4>("test.logix");
+
+    assert_eq!(
+        e,
+        ParseError::UnexpectedToken {
+            span: l.span("test.logix", 2, 2, 1),
+            while_parsing: "Struct4",
+            got_token: "identifier",
+            wanted: Wanted::Tokens(&[
+                Token::Brace {
+                    start: false,
+                    brace: Brace::Curly
+                },
+                Token::Ident("_a"),
+                Token::Ident("_b"),
+                Token::Ident("_c"),
+                Token::Ident("_d")
+            ])
+        }
+    );
+
+    assert_eq!(
+        debval(&e),
+        concat!(
+            "\n",
+            "error: Unexpected identifier while parsing `Struct4`\n",
+            "   ---> test.logix:2:2\n",
+            "    |\n",
+            "  1 | Struct4 {\n",
+            "  2 |   x: 1\n",
+            "    |   ^ expected one of `}`, `_a`, `_b`, `_c`, or `_d`\n",
+            "  3 | }\n",
+        )
+    );
+
+    assert_eq!(
+        disval(&e),
+        "Unexpected identifier while parsing `Struct4`, expected one of `}`, `_a`, `_b`, `_c`, or `_d` in test.logix:2:2"
+    );
+}
+
+#[test]
+fn missing_members1() {
+    #[derive(LogixType, Debug)]
+    struct Struct1 {
+        _a: i32,
+    }
+    let mut l = Loader::init().with_file("test.logix", "Struct1 {\n  x: 1\n}".as_bytes());
+    let e = l.parse_file::<Struct1>("test.logix");
+
+    assert_eq!(
+        e,
+        ParseError::UnexpectedToken {
+            span: l.span("test.logix", 2, 2, 1),
+            while_parsing: "Struct1",
+            got_token: "identifier",
+            wanted: Wanted::Tokens(&[
+                Token::Brace {
+                    start: false,
+                    brace: Brace::Curly
+                },
+                Token::Ident("_a"),
+            ])
+        }
+    );
+
+    assert_eq!(
+        debval(&e),
+        concat!(
+            "\n",
+            "error: Unexpected identifier while parsing `Struct1`\n",
+            "   ---> test.logix:2:2\n",
+            "    |\n",
+            "  1 | Struct1 {\n",
+            "  2 |   x: 1\n",
+            "    |   ^ expected either `}` or `_a`\n",
+            "  3 | }\n",
+        )
+    );
+
+    assert_eq!(
+        disval(&e),
+        "Unexpected identifier while parsing `Struct1`, expected either `}` or `_a` in test.logix:2:2"
+    );
+}
+
+#[test]
+fn missing_members0() {
+    #[derive(LogixType, Debug)]
+    struct Struct0 {}
+    let mut l = Loader::init().with_file("test.logix", "Struct0 {\n  x: 1\n}".as_bytes());
+    let e = l.parse_file::<Struct0>("test.logix");
+
+    assert_eq!(
+        e,
+        ParseError::UnexpectedToken {
+            span: l.span("test.logix", 2, 2, 1),
+            while_parsing: "Struct0",
+            got_token: "identifier",
+            wanted: Wanted::Tokens(&[Token::Brace {
+                start: false,
+                brace: Brace::Curly
+            },])
+        }
+    );
+
+    assert_eq!(
+        debval(&e),
+        concat!(
+            "\n",
+            "error: Unexpected identifier while parsing `Struct0`\n",
+            "   ---> test.logix:2:2\n",
+            "    |\n",
+            "  1 | Struct0 {\n",
+            "  2 |   x: 1\n",
+            "    |   ^ expected `}`\n",
+            "  3 | }\n",
+        )
+    );
+
+    assert_eq!(
+        disval(&e),
+        "Unexpected identifier while parsing `Struct0`, expected `}` in test.logix:2:2"
     );
 }

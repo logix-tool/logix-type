@@ -22,7 +22,7 @@ pub(crate) fn do_any(
             type_name_str: variant_name.to_string(),
             type_name: variant_name,
         };
-        let (value_desc, parse) = crate::derive_struct::do_any(&shared, variant.fields);
+        let (value_desc, parse) = crate::derive_struct::do_any(&shared, variant.fields, true);
         variants_desc.push(value_desc);
         variant_parsers.push(parse);
         variant_names_str.push(shared.type_name_str);
@@ -43,12 +43,14 @@ pub(crate) fn do_any(
                 #((type_name_span, Token::Ident(#variant_names_str)) => {
                     #variant_parsers
                 })*
-                (span, token) => Err(ParseError::UnexpectedToken {
-                    span,
-                    while_parsing: #type_name_str,
-                    wanted: Wanted::Tokens(&[#(#variant_names_str,)*]),
-                    got_token: token.token_type_name(),
-                }),
+                (span, token) => {
+                    Err(ParseError::UnexpectedToken {
+                        span,
+                        while_parsing: #type_name_str,
+                        wanted: Wanted::Tokens(&[#(Token::Ident(#variant_names_str),)*]),
+                        got_token: token.token_type_name(),
+                    })
+                }
             }
         ),
     )

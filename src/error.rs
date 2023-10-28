@@ -2,7 +2,6 @@ pub use crate::span::SourceSpan;
 use core::fmt;
 use owo_colors::OwoColorize;
 
-use logix_vfs::LogixVfs;
 use thiserror::Error;
 
 use crate::{
@@ -51,6 +50,7 @@ pub enum Wanted {
     Token(Token<'static>),
     Tokens(&'static [Token<'static>]),
     LitStr,
+    LitNum(&'static str),
 }
 
 impl fmt::Display for Wanted {
@@ -78,6 +78,7 @@ impl fmt::Display for Wanted {
                 last.write_token_display_name(f)
             }
             Self::LitStr => write!(f, "string"),
+            Self::LitNum(name) => write!(f, "{name}"),
         }
     }
 }
@@ -87,7 +88,7 @@ pub enum ParseError {
     #[error(transparent)]
     FsError(#[from] logix_vfs::Error),
 
-    #[error("Warning treated as error: {0}")]
+    #[error(transparent)]
     Warning(Warn),
 
     #[error("Missing struct member `{member}` while parsing `{type_name}` in {span}")]
@@ -124,9 +125,7 @@ pub enum ParseError {
 
 impl ParseError {
     pub(crate) fn read_error(e: std::io::Error) -> Self {
-        match e.kind() {
-            unk => todo!("{e:?} => {unk:?}"),
-        }
+        Self::FsError(logix_vfs::Error::Other(e.to_string()))
     }
 }
 
@@ -134,8 +133,13 @@ impl fmt::Debug for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f)?;
         match self {
-            Self::FsError(_) => todo!(),
-            Self::Warning(_) => todo!(),
+            Self::FsError(e) => writeln!(f, "{}{}", "error: ".bright_red().bold(), e.bold()),
+            Self::Warning(Warn::DuplicateMapEntry { span, key }) => write_error(
+                f,
+                format_args!("Duplicate entry `{key}` while parsing `Map`"),
+                span,
+                format_args!("overwrites the previous entry"),
+            ),
             Self::MissingStructMember {
                 span,
                 type_name,
@@ -144,7 +148,7 @@ impl fmt::Debug for ParseError {
                 f,
                 format_args!("Missing struct member while parsing `{type_name}`"),
                 span,
-                format_args!("Expected `{member}`"),
+                format_args!("expected `{member}`"),
             ),
             Self::DuplicateStructMember {
                 span,
@@ -154,7 +158,7 @@ impl fmt::Debug for ParseError {
                 f,
                 format_args!("Duplicate struct member while parsing `{type_name}`"),
                 span,
-                format_args!("Unexpected `{member}`"),
+                format_args!("unexpected `{member}`"),
             ),
             Self::UnexpectedToken {
                 span,
@@ -165,7 +169,7 @@ impl fmt::Debug for ParseError {
                 f,
                 format_args!("Unexpected {got_token} while parsing `{while_parsing}`"),
                 span,
-                format_args!("Expected {wanted}"),
+                format_args!("expected {wanted}"),
             ),
             Self::StrEscError { span, error } => {
                 write_error(f, "Failed to parse escaped string", span, error)
@@ -230,21 +234,10 @@ fn write_error(
     Ok(())
 }
 
-#[derive(Error)]
-#[error("{error}")]
-pub struct LoaderError<'fs, FS: LogixVfs> {
-    fs: &'fs FS,
-    error: ParseError,
-}
-
-impl<'fs, FS: LogixVfs> fmt::Debug for LoaderError<'fs, FS> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.error)
-    }
-}
-
 #[derive(Error, Debug, PartialEq)]
 pub enum Warn {
-    #[error("Duplicate map entry {key:?}")]
+    #[error(
+        "Duplicate entry `{key}` while parsing `Map`, overwrites the previous entry in {span}"
+    )]
     DuplicateMapEntry { span: SourceSpan, key: Str },
 }

@@ -31,7 +31,7 @@ pub fn impl_logix_type(input: TokenStream) -> TokenStream {
     } = &shared;
 
     let (value_desc, parse) = match input.data {
-        syn::Data::Struct(data) => derive_struct::do_any(&shared, data.fields),
+        syn::Data::Struct(data) => derive_struct::do_any(&shared, data.fields, false),
         syn::Data::Enum(data) => derive_enum::do_any(&shared, data.variants),
         syn::Data::Union(..) => todo!("Implement unions"),
     };

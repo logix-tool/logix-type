@@ -6,12 +6,6 @@ use logix_vfs::LogixVfs;
 
 use crate::{error::ParseError, parser::LogixParser, token::Token, type_trait::LogixType};
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-pub struct FileId {
-    loader: u32,
-    file: u32,
-}
-
 #[derive(Clone, PartialEq, Eq)]
 pub(crate) struct CachedFile {
     path: Arc<Path>,
@@ -38,6 +32,7 @@ impl fmt::Debug for CachedFile {
     }
 }
 
+#[derive(Debug)]
 pub struct LogixLoader<FS: LogixVfs> {
     fs: FS,
     files: IndexMap<Arc<Path>, Arc<[u8]>>,
@@ -96,5 +91,30 @@ impl<FS: LogixVfs> LogixLoader<FS> {
         p.req_token(T::DESCRIPTOR.name, Token::Newline(true))?;
 
         Ok(ret.value)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use logix_vfs::RelFs;
+
+    use super::*;
+
+    #[test]
+    fn basics() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join("test.logix"), b"10").unwrap();
+
+        format!(
+            "{:?}",
+            CachedFile {
+                path: Arc::from(Path::new("a")),
+                data: Arc::from(b"".as_slice()),
+            }
+        );
+
+        let mut loader = LogixLoader::new(RelFs::new(tmp.path()));
+        loader.load_file::<u32>("test.logix").unwrap();
+        loader.load_file::<u32>("test.logix").unwrap(); // Twice to test cache
     }
 }

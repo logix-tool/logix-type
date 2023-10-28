@@ -26,7 +26,7 @@ fn stray_token(token: &str, token_str: &'static str) {
             format!("    |\n"),
             format!("  5 | \n"),
             format!("  6 | {token}\n"),
-            format!("    | {} Expected end of file\n", "^".repeat(token.len())),
+            format!("    | {} expected end of file\n", "^".repeat(token.len())),
         ]
         .into_iter()
         .collect::<String>(),

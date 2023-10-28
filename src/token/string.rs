@@ -36,10 +36,14 @@ pub fn parse_basic<'a>(buf: &'a [u8], start: usize) -> ParseRes<'a> {
                 tag = StrTag::Esc;
                 pos += 2;
             }
-            b'\n' => {
-                return ParseRes::new_res(pos..pos + 1, 0, Err(TokenError::MissingStringTerminator))
+            unk => {
+                assert_eq!(unk, b'\n');
+                return ParseRes::new_res(
+                    pos..pos + 1,
+                    0,
+                    Err(TokenError::MissingStringTerminator),
+                );
             }
-            unk => unreachable!("{unk:?} ({:?}) is not in byteset", char::from(unk)),
         }
     }
 
