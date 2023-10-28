@@ -102,6 +102,7 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
                         if !eof && last_was_newline {
                             continue 'outer;
                         }
+                        self.eof = eof;
                         Ok((span, Token::Newline(eof)))
                     }
                     Ok(Token::Comment(_)) => {
@@ -159,7 +160,12 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
                     brace,
                 },
             ) if brace == end_brace => Ok(None),
-            unk => todo!("{unk:#?}"),
+            (span, got_token) => Err(ParseError::UnexpectedToken {
+                span,
+                while_parsing,
+                wanted: Wanted::Ident,
+                got_token: got_token.token_type_name(),
+            }),
         }
     }
 
@@ -233,6 +239,8 @@ mod tests {
         );
 
         assert_eq!(p.next_token()?, (s(f, 22, 1, 22, 0), Token::Newline(true)));
+
+        assert_eq!(p.next_token()?, (s(f, 22, 1, 22, 0), Token::Newline(true))); // A second time to trigger additional code
         Ok(())
     }
 }

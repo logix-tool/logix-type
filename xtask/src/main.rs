@@ -1,11 +1,38 @@
-use std::{path::PathBuf, process::Command};
+use std::{
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 struct Vars {
     cwd: PathBuf,
     target_dir: PathBuf,
 }
 
+fn grcov(target_dir: &Path, format: &str, build_type: &str) {
+    let ret = Command::new("grcov")
+        .args(["."])
+        .args([
+            "--binary-path",
+            target_dir
+                .join(format!("{build_type}/deps"))
+                .to_str()
+                .unwrap(),
+        ])
+        .args(["-s", "."])
+        .args(["-t", format])
+        .args(["--branch"])
+        .args(["--ignore-not-existing"])
+        .args(["-o", target_dir.join(format).to_str().unwrap()])
+        .args(["--keep-only", "src/*"])
+        .args(["--keep-only", "derive/src/*"])
+        .status()
+        .expect("Perhaps you need to run 'cargo install grcov'")
+        .success();
+    assert!(ret);
+}
+
 fn code_coverage(vars: &Vars) {
+    let build_type = "debug";
     let target_dir = vars.target_dir.join("coverage");
 
     std::fs::remove_dir_all(&target_dir).unwrap();
@@ -20,30 +47,37 @@ fn code_coverage(vars: &Vars) {
         )
         .arg("test")
         .arg("--workspace")
+        .args(match build_type {
+            "release" => vec!["--release"],
+            "debug" => vec![],
+            _ => unreachable!("{build_type:?}"),
+        })
         .status()
         .unwrap()
         .success();
     assert!(ret);
 
-    let ret = Command::new("grcov")
-        .args(["."])
-        .args([
-            "--binary-path",
-            target_dir.join("debug/deps").to_str().unwrap(),
-        ])
-        .args(["-s", "."])
-        .args(["-t", "html"])
-        .args(["--branch"])
-        .args(["--ignore-not-existing"])
-        .args(["-o", target_dir.join("html").to_str().unwrap()])
-        .args(["--ignore", "xtask/src/*"])
+    grcov(&target_dir, "html", build_type);
+    grcov(&target_dir, "lcov", build_type);
+
+    let ret = Command::new("genhtml")
+        .args(["-o", target_dir.join("html2").to_str().unwrap()])
+        .args(["--show-details"])
+        .args(["--highlight"])
+        .args(["--ignore-errors", "source"])
+        .args(["--legend", target_dir.join("lcov").to_str().unwrap()])
         .status()
-        .expect("Perhaps you need to run 'cargo install grcov'")
+        .unwrap()
         .success();
     assert!(ret);
 
+    println!("Now open:");
     println!(
-        "Now open file://{}/html/index.html",
+        "  file://{}/html/index.html",
+        vars.cwd.join(&target_dir).display()
+    );
+    println!(
+        "  file://{}/html2/index.html",
         vars.cwd.join(&target_dir).display()
     );
 }

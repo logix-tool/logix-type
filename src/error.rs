@@ -51,6 +51,7 @@ pub enum Wanted {
     Tokens(&'static [Token<'static>]),
     LitStr,
     LitNum(&'static str),
+    Ident,
 }
 
 impl fmt::Display for Wanted {
@@ -79,6 +80,7 @@ impl fmt::Display for Wanted {
             }
             Self::LitStr => write!(f, "string"),
             Self::LitNum(name) => write!(f, "{name}"),
+            Self::Ident => write!(f, "identifier"),
         }
     }
 }
@@ -121,12 +123,6 @@ pub enum ParseError {
 
     #[error("Failed to parse input, {error} in {span}")]
     TokenError { span: SourceSpan, error: TokenError },
-}
-
-impl ParseError {
-    pub(crate) fn read_error(e: std::io::Error) -> Self {
-        Self::FsError(logix_vfs::Error::Other(e.to_string()))
-    }
 }
 
 impl fmt::Debug for ParseError {
@@ -240,4 +236,37 @@ pub enum Warn {
         "Duplicate entry `{key}` while parsing `Map`, overwrites the previous entry in {span}"
     )]
     DuplicateMapEntry { span: SourceSpan, key: Str },
+}
+
+#[cfg(test)]
+mod tests {
+    use std::error::Error;
+
+    use super::*;
+
+    #[test]
+    fn coverage_hacks() {
+        assert_eq!(
+            format!("{:?}", EscStrError::InvalidUnicodeHex),
+            "InvalidUnicodeHex",
+        );
+        assert_eq!(format!("{:?}", TokenError::LitStrNotUtf8), "LitStrNotUtf8",);
+        assert_eq!(format!("{:?}", Wanted::LitStr), "LitStr",);
+        assert_eq!(
+            format!(
+                "{:?}",
+                Warn::DuplicateMapEntry {
+                    span: SourceSpan::empty(),
+                    key: "test".into()
+                }
+            ),
+            "DuplicateMapEntry { span: SourceSpan { file: CachedFile(\"\"), pos: 0, line: 0, col: 0..0 }, key: \"test\" }",
+        );
+        assert_eq!(
+            ParseError::FsError(logix_vfs::Error::NotFound)
+                .source()
+                .map(|e| e.to_string()),
+            None,
+        );
+    }
 }

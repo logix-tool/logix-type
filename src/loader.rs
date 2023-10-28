@@ -13,6 +13,21 @@ pub(crate) struct CachedFile {
 }
 
 impl CachedFile {
+    pub(crate) fn empty() -> CachedFile {
+        Self {
+            path: Arc::from(Path::new("")),
+            data: Arc::from(b"".as_slice()),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn from_slice(path: impl AsRef<Path>, data: &[u8]) -> CachedFile {
+        Self {
+            path: Arc::from(Path::new(path.as_ref())),
+            data: Arc::from(data),
+        }
+    }
+
     pub fn path(&self) -> &Path {
         &self.path
     }
@@ -67,7 +82,7 @@ impl<FS: LogixVfs> LogixLoader<FS> {
                 self.tmp.clear();
                 let mut r = self.fs.open_file(entry.key())?;
                 r.read_to_end(&mut self.tmp)
-                    .map_err(ParseError::read_error)?;
+                    .map_err(logix_vfs::Error::from)?;
                 let data = entry.insert(Arc::from(self.tmp.as_slice())).clone();
                 Ok(CachedFile { path, data })
             }

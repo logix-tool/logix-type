@@ -14,6 +14,14 @@ pub struct SourceSpan {
 }
 
 impl SourceSpan {
+    pub fn empty() -> Self {
+        Self {
+            file: CachedFile::empty(),
+            pos: 0,
+            line: 0,
+            col: 0..0,
+        }
+    }
     pub fn new_for_test(
         loader: &LogixLoader<impl LogixVfs>,
         path: impl AsRef<Path>,
@@ -116,5 +124,40 @@ impl fmt::Display for SourceSpan {
             self.line,
             self.col.start
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn coverage_hacks() {
+        assert_eq!(
+            SourceSpan {
+                file: CachedFile::from_slice("test.logix", b"hello world"),
+                pos: 6,
+                line: 1,
+                col: 6..11,
+            }
+            .value(),
+            "world"
+        );
+        assert_eq!(SourceSpan::empty().value(), "");
+    }
+
+    #[test]
+    fn line_width() {
+        assert_eq!(SourceSpan::empty().calc_ln_width(0), 3);
+        assert_eq!(SourceSpan::empty().calc_ln_width(10), 3);
+        assert_eq!(SourceSpan::empty().calc_ln_width(100), 3);
+        assert_eq!(SourceSpan::empty().calc_ln_width(1000), 4);
+        assert_eq!(SourceSpan::empty().calc_ln_width(10000), 5);
+        assert_eq!(SourceSpan::empty().calc_ln_width(100000), 6);
+        assert_eq!(SourceSpan::empty().calc_ln_width(1000000), 10);
+        assert_eq!(SourceSpan::empty().calc_ln_width(10000000), 10);
+        assert_eq!(SourceSpan::empty().calc_ln_width(100000000), 10);
+        assert_eq!(SourceSpan::empty().calc_ln_width(1000000000), 10);
+        assert_eq!(SourceSpan::empty().calc_ln_width(10000000000), 10);
     }
 }

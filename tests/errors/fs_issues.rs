@@ -50,7 +50,7 @@ fn read_error() {
             [(
                 "test.logix",
                 FailFile {
-                    res: vec![Err(Error::new(ErrorKind::BrokenPipe, "sorry"))],
+                    res: vec![Err(Error::new(ErrorKind::Other, "sorry"))],
                 },
             )]
             .into_iter()
