@@ -13,6 +13,14 @@ Root {
   type_u64: 7202218937 /* block comment with a * in it */
   type_str: "Hello, world!"
   type_string: "Howdy, universe!"
+  type_enum: {
+    unit: Unit
+    unnamed: Unnamed(10)
+    named: Named {
+      v: 20
+    }
+  }
+  type_unit: Unit
   type_map_int: {
     // Comment just after curly brace
     key1: 8
@@ -65,5 +73,4 @@ Root {
     esc: #esc"this is \n esc"#
     txt: #txt"this is \n txt"#
   }
-  simple_enum: This
 }

@@ -15,6 +15,8 @@ fi
 rm -f $CARGO_TARGET_DIR/cargo-test-*.profraw
 rm -rf $CARGO_TARGET_DIR/html
 
+find . -name "*.rs" -not -wholename "./target/*" -exec touch {} \;
+
 cargo test
 
 grcov . \

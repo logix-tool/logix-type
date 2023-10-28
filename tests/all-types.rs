@@ -4,10 +4,14 @@ use logix_vfs::{LogixVfs, RelFs};
 static ALL_TYPES_FILE: &str = include_str!("include/all-types.logix");
 
 #[derive(logix_type::LogixType, PartialEq, Debug)]
-enum SimpleEnum {
-    This,
-    OrThis,
+enum Enum {
+    Unit,
+    Unnamed(u32),
+    Named { v: u32 },
 }
+
+#[derive(logix_type::LogixType, PartialEq, Debug)]
+struct Unit;
 
 #[derive(logix_type::LogixType, PartialEq, Debug)]
 struct Root {
@@ -21,6 +25,8 @@ struct Root {
     type_u64: u64,
     type_str: Str,
     type_string: String,
+    type_enum: Map<Enum>,
+    type_unit: Unit,
     type_map_int: Map<i32>,
     type_map_str: Map<String>,
     type_map_named_struct: Map<NamedNode>,
@@ -30,7 +36,6 @@ struct Root {
     very_long_escape1: String,
     very_long_escape2: String,
     tagged_strings: Map<String>,
-    simple_enum: SimpleEnum,
 }
 
 #[derive(logix_type::LogixType, PartialEq, Debug)]
@@ -54,21 +59,23 @@ fn expected_root() -> Root {
         type_u64: 7202218937,
         type_str: "Hello, world!".into(),
         type_string: "Howdy, universe!".into(),
-        type_map_int: vec![
+        type_enum: [
+            (Str::new("unit"), Enum::Unit),
+            (Str::new("unnamed"), Enum::Unnamed(10)),
+            (Str::new("named"), Enum::Named { v: 20 }),
+        ].into(),
+        type_unit: Unit,
+        type_map_int: [
             (Str::new("key1"), 8),
             (Str::new("key2"), -12),
             (Str::new("key3"), 0),
-        ]
-        .into_iter()
-        .collect(),
-        type_map_str: vec![
+        ].into(),
+        type_map_str: [
             (Str::new("key4"), "Hi, space!".to_string()),
             (Str::new("key5"), "Yo, multiverse!".to_string()),
             (Str::new("key6"), "Sup, dimension!".to_string()),
-        ]
-        .into_iter()
-        .collect(),
-        type_map_named_struct: vec![
+        ].into(),
+        type_map_named_struct: [
             (
                 Str::new("key7"),
                 NamedNode {
@@ -90,10 +97,8 @@ fn expected_root() -> Root {
                     v: 597,
                 },
             ),
-        ]
-        .into_iter()
-        .collect(),
-        type_map_unnamed_struct: vec![
+        ].into(),
+        type_map_unnamed_struct: [
             (
                 Str::new("key10"),
                 UnnamedNode("Howdy-do, domain!".into(), 409),
@@ -106,9 +111,7 @@ fn expected_root() -> Root {
                 Str::new("key12"),
                 UnnamedNode("Bonjour, infinity!".into(), 2471),
             ),
-        ]
-        .into_iter()
-        .collect(),
+        ].into(),
         txt_str: concat!(
             "Good day there mister!",
             "\n",
@@ -125,7 +128,6 @@ fn expected_root() -> Root {
             (Str::new("esc"), "this is \n esc".to_owned()),
             (Str::new("txt"), "this is \\n txt".to_owned()),
         ].into(),
-        simple_enum: SimpleEnum::This,
     }
 }
 
@@ -142,6 +144,8 @@ fn load_and_compare(loader: &mut LogixLoader<impl LogixVfs>) -> Result<()> {
         type_u64,
         type_str,
         type_string,
+        type_enum,
+        type_unit,
         type_map_int,
         type_map_str,
         type_map_named_struct,
@@ -151,7 +155,6 @@ fn load_and_compare(loader: &mut LogixLoader<impl LogixVfs>) -> Result<()> {
         very_long_escape1,
         very_long_escape2,
         tagged_strings,
-        simple_enum,
     } = loader.load_file("all-types.logix")?;
     assert_eq!(type_i8, expected.type_i8);
     assert_eq!(type_u8, expected.type_u8);
@@ -162,6 +165,8 @@ fn load_and_compare(loader: &mut LogixLoader<impl LogixVfs>) -> Result<()> {
     assert_eq!(type_i64, expected.type_i64);
     assert_eq!(type_u64, expected.type_u64);
     assert_eq!(type_str, expected.type_str);
+    assert_eq!(type_unit, expected.type_unit);
+    assert_eq!(type_enum, expected.type_enum);
     assert_eq!(type_string, expected.type_string);
     assert_eq!(type_map_int, expected.type_map_int);
     assert_eq!(type_map_str, expected.type_map_str);
@@ -190,7 +195,6 @@ fn load_and_compare(loader: &mut LogixLoader<impl LogixVfs>) -> Result<()> {
         }
     }
 
-    assert_eq!(simple_enum, expected.simple_enum);
     Ok(())
 }
 

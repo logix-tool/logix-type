@@ -18,3 +18,25 @@ pub mod __private {
 
 pub type Map<V> = indexmap::IndexMap<Str, V>;
 pub type Str = smol_str::SmolStr;
+
+// NOTE(2023.10): This is a work-around to test that compilation works
+/// ```
+/// use logix_type::LogixType;
+///
+/// #[derive(LogixType)]
+/// struct Hello {
+///     a: u32,
+///     b: u32,
+/// }
+///```
+// NOTE(2023.10): This is a work-around to test that compilation fails
+/// ```compile_fail
+/// use logix_type::LogixType;
+///
+/// #[derive(LogixType)]
+/// union Hello {
+///     a: u32,
+///     b: u32,
+/// }
+/// ```
+struct _Dummy;
