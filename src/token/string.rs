@@ -20,6 +20,7 @@ fn parse_utf8<'a>(
         )
     })
 }
+
 pub fn parse_basic(buf: &[u8], start: usize) -> ParseRes {
     let mut pos = start + 1;
     let mut tag = StrTag::Raw;

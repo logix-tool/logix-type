@@ -17,13 +17,13 @@ pub struct Value<T> {
 pub enum LogixValueDescriptor {
     Native,
     Tuple {
-        members: &'static [&'static LogixTypeDescriptor],
+        members: Vec<&'static LogixTypeDescriptor>,
     },
     Struct {
-        members: &'static [(&'static str, &'static LogixTypeDescriptor)],
+        members: Vec<(&'static str, &'static LogixTypeDescriptor)>,
     },
     Enum {
-        variants: &'static [&'static LogixTypeDescriptor],
+        variants: Vec<LogixTypeDescriptor>,
     },
 }
 
@@ -34,7 +34,6 @@ pub struct LogixTypeDescriptor {
 }
 
 pub trait LogixType: Sized {
-    const DESCRIPTOR: &'static LogixTypeDescriptor;
-
+    fn descriptor() -> &'static LogixTypeDescriptor;
     fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<Self>>;
 }

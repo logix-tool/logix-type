@@ -113,6 +113,40 @@ impl SourceSpan {
             _ => 10,
         }
     }
+
+    pub(crate) fn join(&self, other: &Self) -> SourceSpan {
+        assert_eq!(self.file, other.file);
+
+        let mut ret = self.clone();
+
+        if ret.line == other.line {
+            ret.pos = other.pos.min(ret.pos);
+            ret.col.start = other.col.start.min(ret.col.start);
+            ret.col.end = other.col.end.min(ret.col.end);
+        } else {
+            todo!()
+        }
+
+        ret
+    }
+
+    pub(crate) fn from_pos(file: &CachedFile, pos: usize) -> SourceSpan {
+        let mut cur = 0;
+        for (i, line) in file.data().lines_with_terminator().enumerate() {
+            let range = cur..cur + line.len();
+            if range.contains(&pos) {
+                let col = u16::try_from(pos - range.start).unwrap();
+                return Self {
+                    file: file.clone(),
+                    pos,
+                    line: i + 1,
+                    col: col..col + 1,
+                };
+            }
+            cur = range.end;
+        }
+        todo!()
+    }
 }
 
 impl fmt::Display for SourceSpan {

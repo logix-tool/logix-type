@@ -1,13 +1,20 @@
-use std::fmt;
+use std::{fmt, path::PathBuf};
 
 use logix_type::{
-    error::{EscStrError, ParseError, SourceSpan, TokenError, Wanted, Warn},
+    error::{EscStrError, IncludeError, ParseError, SourceSpan, TokenError, Wanted, Warn},
     LogixLoader, LogixType, Map, Str,
     __private::{Brace, Delim, StrTag, StrTagSuffix, Token},
 };
 use logix_vfs::RelFs;
 
 mod errors;
+
+#[derive(LogixType, Debug)]
+#[allow(dead_code)]
+struct GenStruct<T: LogixType + fmt::Debug> {
+    aaa: u32,
+    bbbb: T,
+}
 
 struct Loader {
     root: tempfile::TempDir,
@@ -34,7 +41,7 @@ impl Loader {
     }
 
     fn parse_file<T: LogixType + std::fmt::Debug>(&mut self, name: &str) -> ParseError {
-        println!("\n\nParsing {}\n", T::DESCRIPTOR.name);
+        println!("\n\nParsing {}\n", T::descriptor().name);
 
         let e = self.loader.load_file::<T>(name).unwrap_err();
 

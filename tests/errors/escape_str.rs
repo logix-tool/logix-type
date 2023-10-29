@@ -1,6 +1,6 @@
 use super::*;
 
-fn escape_str(
+fn escape_str<T: LogixType + fmt::Debug>(
     esc_str: &str,
     col_off: usize,
     col_len: usize,
@@ -11,9 +11,9 @@ fn escape_str(
     let col = 8 + col_off;
     let mut l = Loader::init().with_file(
         "test.logix",
-        format!("Struct {{\n  aaa: 10\n  bbbb: {esc_str}\n}}").as_bytes(),
+        format!("GenStruct {{\n  aaa: 10\n  bbbb: {esc_str}\n}}").as_bytes(),
     );
-    let e = l.parse_struct("test.logix");
+    let e = l.parse_file::<GenStruct<T>>("test.logix");
 
     assert_eq!(
         e,
@@ -45,9 +45,8 @@ fn escape_str(
     );
 }
 
-#[test]
-fn escape_hex() {
-    escape_str(
+fn escape_hex<T: LogixType + fmt::Debug>() {
+    escape_str::<T>(
         r#""\xf""#,
         1,
         3,
@@ -55,7 +54,7 @@ fn escape_hex() {
         EscStrError::TruncatedHex,
         "got truncated hex escape code",
     );
-    escape_str(
+    escape_str::<T>(
         r#""\xfk""#,
         1,
         4,
@@ -66,8 +65,22 @@ fn escape_hex() {
 }
 
 #[test]
-fn escape_unicode() {
-    escape_str(
+fn escape_hex_string() {
+    escape_hex::<String>();
+}
+
+#[test]
+fn escape_hex_str() {
+    escape_hex::<Str>();
+}
+
+#[test]
+fn escape_hex_pathbuf() {
+    escape_hex::<PathBuf>();
+}
+
+fn escape_unicode<T: LogixType + fmt::Debug>() {
+    escape_str::<T>(
         r#""\u{z}""#,
         1,
         5,
@@ -76,7 +89,7 @@ fn escape_unicode() {
         "got invalid unicode hex escape code",
     );
 
-    escape_str(
+    escape_str::<T>(
         r#""\u{}""#,
         1,
         4,
@@ -85,7 +98,7 @@ fn escape_unicode() {
         "got invalid unicode hex escape code",
     );
 
-    escape_str(
+    escape_str::<T>(
         r#""\u{1234z}""#,
         1,
         9,
@@ -94,7 +107,7 @@ fn escape_unicode() {
         "got invalid unicode hex escape code",
     );
 
-    escape_str(
+    escape_str::<T>(
         r#""\u{ffff0000}""#,
         1,
         12,
@@ -103,7 +116,7 @@ fn escape_unicode() {
         "the code point U+ffff0000 is invalid",
     );
 
-    escape_str(
+    escape_str::<T>(
         r#""\u{ffff00000}""#,
         1,
         11,
@@ -112,7 +125,7 @@ fn escape_unicode() {
         "got invalid unicode escape, expected `}`",
     );
 
-    escape_str(
+    escape_str::<T>(
         r#""\u{fff""#,
         1,
         6,
@@ -121,7 +134,7 @@ fn escape_unicode() {
         "got invalid unicode escape, expected `}`",
     );
 
-    escape_str(
+    escape_str::<T>(
         r#""\u10""#,
         1,
         3,
@@ -132,8 +145,22 @@ fn escape_unicode() {
 }
 
 #[test]
-fn escape_char() {
-    escape_str(
+fn escape_unicode_string() {
+    escape_unicode::<String>();
+}
+
+#[test]
+fn escape_unicode_str() {
+    escape_unicode::<Str>();
+}
+
+#[test]
+fn escape_unicode_pathbuf() {
+    escape_unicode::<PathBuf>();
+}
+
+fn escape_char<T: LogixType + fmt::Debug>() {
+    escape_str::<T>(
         r#""\k""#,
         1,
         2,
@@ -141,4 +168,19 @@ fn escape_char() {
         EscStrError::InvalidEscapeChar('k'),
         "got invalid escape character 'k'",
     );
+}
+
+#[test]
+fn escape_char_string() {
+    escape_char::<String>();
+}
+
+#[test]
+fn escape_char_str() {
+    escape_char::<Str>();
+}
+
+#[test]
+fn escape_char_pathbuf() {
+    escape_char::<PathBuf>();
 }

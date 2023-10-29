@@ -100,10 +100,10 @@ impl<FS: LogixVfs> LogixLoader<FS> {
         let ret = T::logix_parse(&mut p)?;
 
         // This will either skip any newlines and comments, or return EOF
-        p.req_newline(T::DESCRIPTOR.name)?;
+        p.req_newline(T::descriptor().name)?;
 
         // From now on EOF should always be returned
-        p.req_token(T::DESCRIPTOR.name, Token::Newline(true))?;
+        p.req_token(T::descriptor().name, Token::Newline(true))?;
 
         Ok(ret.value)
     }

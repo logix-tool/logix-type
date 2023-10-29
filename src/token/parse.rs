@@ -9,7 +9,7 @@ const IDENT1: ByteSet = ByteSet(concat!(
 
 use bstr::ByteSlice;
 
-use super::{Brace, ByteSet, Delim, Literal, Token, TokenError};
+use super::{Action, Brace, ByteSet, Delim, Literal, Token, TokenError};
 
 #[derive(Debug, PartialEq)]
 pub struct ParseRes<'a> {
@@ -58,6 +58,7 @@ impl<'a> ParseRes<'a> {
 
     pub(super) fn take_byteset(
         buf: &'a [u8],
+        span_start: usize,
         start: usize,
         byteset: ByteSet,
         f: impl FnOnce(&'a str) -> Token,
@@ -66,7 +67,7 @@ impl<'a> ParseRes<'a> {
             .find_not_byteset(byteset.0)
             .unwrap_or(buf.len() - start);
         let end = start + len;
-        ParseRes::new(start..end, f(from_utf8(&buf[start..end]).unwrap()))
+        ParseRes::new(span_start..end, f(from_utf8(&buf[start..end]).unwrap()))
     }
 
     fn new_brace(pos: usize, start: bool, brace: Brace) -> Self {
@@ -79,10 +80,10 @@ pub fn parse_token(buf: &[u8]) -> ParseRes {
 
     match buf.get(start) {
         Some(b'a'..=b'z' | b'A'..=b'Z' | b'_') => {
-            ParseRes::take_byteset(buf, start, IDENT1, Token::Ident)
+            ParseRes::take_byteset(buf, start, start, IDENT1, Token::Ident)
         }
         Some(b'-' | b'0'..=b'9') => {
-            ParseRes::take_byteset(buf, start, ByteSet("0123456789-._"), |s| {
+            ParseRes::take_byteset(buf, start, start, ByteSet("0123456789-._"), |s| {
                 Token::Literal(Literal::Num(s))
             })
         }
@@ -120,6 +121,16 @@ pub fn parse_token(buf: &[u8]) -> ParseRes {
                 ret
             } else {
                 ParseRes::new_res(start..start + 1, 0, Err(TokenError::UnexpectedChar('#')))
+            }
+        }
+        Some(b'@') => {
+            if matches!(buf.get(start + 1), Some(b'a'..=b'z' | b'A'..=b'Z' | b'_')) {
+                ParseRes::take_byteset(buf, start, start + 1, IDENT1, |a| match a {
+                    "include" => Token::Action(Action::Include),
+                    _ => todo!(),
+                })
+            } else {
+                todo!()
             }
         }
         _ => {

@@ -7,6 +7,7 @@ pub(crate) fn do_any(
         type_name_str,
         type_name,
         cr,
+        impl_gen,
     }: &Shared,
     variants: impl IntoIterator<Item = syn::Variant>,
 ) -> (TokenStream2, TokenStream2) {
@@ -21,6 +22,7 @@ pub(crate) fn do_any(
             cr: cr.clone(),
             type_name_str: variant_name.to_string(),
             type_name: variant_name,
+            impl_gen: impl_gen.clone(),
         };
         let (value_desc, parse) = crate::derive_struct::do_any(&shared, variant.fields, true);
         variants_desc.push(value_desc);
@@ -31,7 +33,7 @@ pub(crate) fn do_any(
     (
         quote!(
             #cr::LogixValueDescriptor::Enum {
-                variants: &[#(&#cr::LogixTypeDescriptor {
+                variants: vec![#(#cr::LogixTypeDescriptor {
                     name: #variant_names_str,
                     doc: "",
                     value: #variants_desc

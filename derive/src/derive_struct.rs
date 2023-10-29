@@ -19,6 +19,7 @@ pub(crate) fn do_unit(
         type_name_str,
         type_name,
         cr,
+        impl_gen: _,
     }: &Shared,
     skip_struct_ident: bool,
 ) -> (TokenStream2, TokenStream2) {
@@ -31,7 +32,7 @@ pub(crate) fn do_unit(
     (
         quote!(
             #cr::LogixValueDescriptor::Struct {
-                members: &[],
+                members: vec![],
             }
         ),
         quote!(
@@ -50,6 +51,7 @@ pub(crate) fn do_named(
         type_name_str,
         type_name,
         cr,
+        impl_gen,
     }: &Shared,
     fields: syn::FieldsNamed,
     skip_struct_ident: bool,
@@ -72,7 +74,7 @@ pub(crate) fn do_named(
         let fname = field.ident.unwrap();
         let fname_str = fname.to_string();
         let ty = field.ty;
-        members_desc.push(quote!((#fname_str, <#ty as #cr::LogixType>::DESCRIPTOR)));
+        members_desc.push(quote!((#fname_str, <#ty as #cr::LogixType>::descriptor())));
         member_tmp_init.push(quote!(None));
         member_tmp_parse.push(quote!(
             if tmp.#fname.is_some() {
@@ -99,13 +101,13 @@ pub(crate) fn do_named(
     (
         quote!(
             #cr::LogixValueDescriptor::Struct {
-                members: &[#(#members_desc,)*],
+                members: vec![#(#members_desc,)*],
             }
         ),
         quote!(
             #req_struct_ident
             {
-                struct Tmp {
+                struct Tmp #impl_gen {
                     #(#member_names: Option<#member_tmp_types>,)*
                 }
                 let mut tmp = Tmp {
@@ -153,6 +155,7 @@ pub(crate) fn do_unnamed(
         type_name_str,
         type_name,
         cr,
+        impl_gen: _,
     }: &Shared,
     fields: syn::FieldsUnnamed,
     skip_struct_ident: bool,
@@ -171,7 +174,7 @@ pub(crate) fn do_unnamed(
     for (i, field) in fields.unnamed.into_iter().enumerate() {
         let ty = field.ty;
         let fname_str = format!("#{i}");
-        members_desc.push(quote!(<#ty as #cr::LogixType>::DESCRIPTOR));
+        members_desc.push(quote!(<#ty as #cr::LogixType>::descriptor()));
         member_parse.push(quote!(<#ty as #cr::LogixType>::logix_parse(p)?.value));
         member_indices.push(i);
         member_str_names.push(fname_str);
@@ -182,7 +185,7 @@ pub(crate) fn do_unnamed(
     (
         quote!(
             #cr::LogixValueDescriptor::Tuple {
-                members: &[#(#members_desc,)*],
+                members: vec![#(#members_desc,)*],
             }
         ),
         quote!(

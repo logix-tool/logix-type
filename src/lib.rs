@@ -1,6 +1,7 @@
 #![deny(warnings, clippy::all)]
 #![allow(clippy::len_without_is_empty)]
 
+mod action;
 pub mod error;
 mod loader;
 mod parser;
