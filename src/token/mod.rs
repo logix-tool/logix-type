@@ -109,8 +109,14 @@ pub enum Literal<'a> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
+pub enum Action {
+    Include,
+}
+
+#[derive(Debug, PartialEq, Eq)]
 pub enum Token<'a> {
     Ident(&'a str),
+    Action(Action),
     Literal(Literal<'a>),
     Brace {
         start: bool,
@@ -126,6 +132,7 @@ impl<'a> Token<'a> {
     pub fn token_type_name(&self) -> &'static str {
         match self {
             Self::Ident(_) => "identifier",
+            Self::Action(_) => "action",
             Self::Literal(Literal::Str(..)) => "string",
             Self::Literal(Literal::Num(..)) => "number",
             Self::Brace {
@@ -171,6 +178,7 @@ impl<'a> Token<'a> {
     pub fn write_token_display_name(&self, f: &mut impl fmt::Write) -> fmt::Result {
         match self {
             Self::Ident(value) => write!(f, "`{value}`"),
+            Self::Action(Action::Include) => write!(f, "`@include`"),
             Self::Literal(Literal::Num(num)) => write!(f, "`{num}`"),
             Self::Brace { .. }
             | Self::Delim(..)

@@ -1,10 +1,11 @@
 use super::*;
 
-#[test]
-fn invalid_utf8_basic() {
-    let mut l =
-        Loader::init().with_file("test.logix", b"Struct {\n  aaa: 20\n  bbbb: \"aa\x8e\"\n}");
-    let e = l.parse_struct("test.logix");
+fn invalid_utf8_basic<T: LogixType + fmt::Debug>() {
+    let mut l = Loader::init().with_file(
+        "test.logix",
+        b"GenStruct {\n  aaa: 20\n  bbbb: \"aa\x8e\"\n}",
+    );
+    let e = l.parse_file::<GenStruct<T>>("test.logix");
 
     assert_eq!(
         e,
@@ -35,12 +36,26 @@ fn invalid_utf8_basic() {
 }
 
 #[test]
-fn invalid_utf8_txt() {
+fn invalid_utf8_basic_string() {
+    invalid_utf8_basic::<String>();
+}
+
+#[test]
+fn invalid_utf8_basic_str() {
+    invalid_utf8_basic::<Str>();
+}
+
+#[test]
+fn invalid_utf8_basic_pathbuf() {
+    invalid_utf8_basic::<PathBuf>();
+}
+
+fn invalid_utf8_txt<T: LogixType + fmt::Debug>() {
     let mut l = Loader::init().with_file(
         "test.logix",
-        b"Struct {\n  aaa: 20\n  bbbb: #txt\"aa\x8e\"#\n}",
+        b"GenStruct {\n  aaa: 20\n  bbbb: #txt\"aa\x8e\"#\n}",
     );
-    let e = l.parse_struct("test.logix");
+    let e = l.parse_file::<GenStruct<T>>("test.logix");
 
     assert_eq!(
         e,
@@ -68,6 +83,21 @@ fn invalid_utf8_txt() {
         disval(&e),
         "Failed to parse input, invalid utf-8 sequence in test.logix:3:16"
     );
+}
+
+#[test]
+fn invalid_utf8_txt_string() {
+    invalid_utf8_txt::<String>();
+}
+
+#[test]
+fn invalid_utf8_txt_str() {
+    invalid_utf8_txt::<Str>();
+}
+
+#[test]
+fn invalid_utf8_txt_pathbuf() {
+    invalid_utf8_txt::<PathBuf>();
 }
 
 #[test]

@@ -45,6 +45,12 @@ pub enum EscStrError {
     InvalidEscapeChar(char),
 }
 
+#[derive(Error, PartialEq, Debug)]
+pub enum IncludeError {
+    #[error("invalid utf-8 sequence")]
+    NotUtf8,
+}
+
 #[derive(Debug, PartialEq)]
 pub enum Wanted {
     Token(Token<'static>),
@@ -123,6 +129,13 @@ pub enum ParseError {
 
     #[error("Failed to parse input, {error} in {span}")]
     TokenError { span: SourceSpan, error: TokenError },
+
+    #[error("Failed to include file as `{while_parsing}`, {error} in {span}")]
+    IncludeError {
+        span: SourceSpan,
+        while_parsing: &'static str,
+        error: IncludeError,
+    },
 }
 
 impl fmt::Debug for ParseError {
@@ -173,6 +186,16 @@ impl fmt::Debug for ParseError {
             Self::TokenError { span, error } => {
                 write_error(f, "Failed to parse input", span, error)
             }
+            Self::IncludeError {
+                span,
+                while_parsing,
+                error,
+            } => write_error(
+                f,
+                format_args!("Failed to include file as `{while_parsing}`"),
+                span,
+                error,
+            ),
         }
     }
 }

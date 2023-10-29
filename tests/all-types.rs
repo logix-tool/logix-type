@@ -1,4 +1,6 @@
-use logix_type::{error::Result, LogixLoader, Map, Str};
+use std::path::PathBuf;
+
+use logix_type::{error::Result, LogixLoader, LogixType, Map, Str};
 use logix_vfs::{LogixVfs, RelFs};
 
 static ALL_TYPES_FILE: &str = include_str!("include/all-types.logix");
@@ -25,6 +27,7 @@ struct Root {
     type_u64: u64,
     type_str: Str,
     type_string: String,
+    type_path: PathBuf,
     type_enum: Map<Enum>,
     type_unit: Unit,
     type_map_int: Map<i32>,
@@ -36,6 +39,7 @@ struct Root {
     very_long_escape1: String,
     very_long_escape2: String,
     tagged_strings: Map<String>,
+    included_string: String,
 }
 
 #[derive(logix_type::LogixType, PartialEq, Debug)]
@@ -59,6 +63,7 @@ fn expected_root() -> Root {
         type_u64: 7202218937,
         type_str: "Hello, world!".into(),
         type_string: "Howdy, universe!".into(),
+        type_path: "hello.txt".into(),
         type_enum: [
             (Str::new("unit"), Enum::Unit),
             (Str::new("unnamed"), Enum::Unnamed(10)),
@@ -128,7 +133,25 @@ fn expected_root() -> Root {
             (Str::new("esc"), "this is \n esc".to_owned()),
             (Str::new("txt"), "this is \\n txt".to_owned()),
         ].into(),
+        included_string: "Hello, this is a plain text file\n".into(),
     }
+}
+
+fn temp_loader() -> (tempfile::TempDir, LogixLoader<impl LogixVfs>) {
+    let dir = tempfile::tempdir().unwrap();
+    let fs = RelFs::new(dir.path());
+    std::fs::write(
+        dir.path().join("text-file.txt"),
+        include_str!("include/text-file.txt"),
+    )
+    .unwrap();
+    std::fs::write(
+        dir.path().join("all-files.logix"),
+        include_str!("include/all-types.logix"),
+    )
+    .unwrap();
+
+    (dir, LogixLoader::new(fs))
 }
 
 fn load_and_compare(loader: &mut LogixLoader<impl LogixVfs>) -> Result<()> {
@@ -144,6 +167,7 @@ fn load_and_compare(loader: &mut LogixLoader<impl LogixVfs>) -> Result<()> {
         type_u64,
         type_str,
         type_string,
+        type_path,
         type_enum,
         type_unit,
         type_map_int,
@@ -155,6 +179,7 @@ fn load_and_compare(loader: &mut LogixLoader<impl LogixVfs>) -> Result<()> {
         very_long_escape1,
         very_long_escape2,
         tagged_strings,
+        included_string,
     } = loader.load_file("all-types.logix")?;
     assert_eq!(type_i8, expected.type_i8);
     assert_eq!(type_u8, expected.type_u8);
@@ -168,6 +193,7 @@ fn load_and_compare(loader: &mut LogixLoader<impl LogixVfs>) -> Result<()> {
     assert_eq!(type_unit, expected.type_unit);
     assert_eq!(type_enum, expected.type_enum);
     assert_eq!(type_string, expected.type_string);
+    assert_eq!(type_path, expected.type_path);
     assert_eq!(type_map_int, expected.type_map_int);
     assert_eq!(type_map_str, expected.type_map_str);
     assert_eq!(type_map_named_struct, expected.type_map_named_struct);
@@ -195,98 +221,101 @@ fn load_and_compare(loader: &mut LogixLoader<impl LogixVfs>) -> Result<()> {
         }
     }
 
+    assert_eq!(included_string, expected.included_string);
+
     Ok(())
 }
 
 #[test]
 fn just_load() -> Result<()> {
+    Root::descriptor(); // Try to load the descriptor
     load_and_compare(&mut LogixLoader::new(RelFs::new("tests/include")))
 }
 
 #[test]
 fn starting_line_comment() -> Result<()> {
-    let dir = tempfile::tempdir().unwrap();
+    let (dir, mut l) = temp_loader();
     std::fs::write(
         dir.path().join("all-types.logix"),
         format!("// Start with a line-comment\n{ALL_TYPES_FILE}"),
     )
     .unwrap();
-    load_and_compare(&mut LogixLoader::new(RelFs::new(dir.path())))
+    load_and_compare(&mut l)
 }
 
 #[test]
 fn terminating_line_comment() -> Result<()> {
-    let dir = tempfile::tempdir().unwrap();
+    let (dir, mut l) = temp_loader();
     std::fs::write(
         dir.path().join("all-types.logix"),
         format!("{ALL_TYPES_FILE} // End in a line-comment"),
     )
     .unwrap();
-    load_and_compare(&mut LogixLoader::new(RelFs::new(dir.path())))
+    load_and_compare(&mut l)
 }
 
 #[test]
 fn starting_multiline_comment() -> Result<()> {
-    let dir = tempfile::tempdir().unwrap();
+    let (dir, mut l) = temp_loader();
     std::fs::write(
         dir.path().join("all-types.logix"),
         format!("/*\nStart with a multi-line comment\n*/ {ALL_TYPES_FILE}"),
     )
     .unwrap();
-    load_and_compare(&mut LogixLoader::new(RelFs::new(dir.path())))
+    load_and_compare(&mut l)
 }
 
 #[test]
 fn terminating_multiline_comment() -> Result<()> {
-    let dir = tempfile::tempdir().unwrap();
+    let (dir, mut l) = temp_loader();
     std::fs::write(
         dir.path().join("all-types.logix"),
         format!("{ALL_TYPES_FILE} /*\nEnd in a multi-line comment\n*/"),
     )
     .unwrap();
-    load_and_compare(&mut LogixLoader::new(RelFs::new(dir.path())))
+    load_and_compare(&mut l)
 }
 
 #[test]
 fn starting_eols() -> Result<()> {
-    let dir = tempfile::tempdir().unwrap();
+    let (dir, mut l) = temp_loader();
     std::fs::write(
         dir.path().join("all-types.logix"),
         format!("\n\n\n\n\n\n\n{ALL_TYPES_FILE}"),
     )
     .unwrap();
-    load_and_compare(&mut LogixLoader::new(RelFs::new(dir.path())))
+    load_and_compare(&mut l)
 }
 
 #[test]
 fn terminating_eols() -> Result<()> {
-    let dir = tempfile::tempdir().unwrap();
+    let (dir, mut l) = temp_loader();
     std::fs::write(
         dir.path().join("all-types.logix"),
         format!("{ALL_TYPES_FILE}\n\n\n\n\n\n\n"),
     )
     .unwrap();
-    load_and_compare(&mut LogixLoader::new(RelFs::new(dir.path())))
+    load_and_compare(&mut l)
 }
 
 #[test]
 fn starting_spaces() -> Result<()> {
-    let dir = tempfile::tempdir().unwrap();
+    let (dir, mut l) = temp_loader();
     std::fs::write(
         dir.path().join("all-types.logix"),
         format!("   \n  \n \t\t  \n  \n\n\n\n{ALL_TYPES_FILE}"),
     )
     .unwrap();
-    load_and_compare(&mut LogixLoader::new(RelFs::new(dir.path())))
+    load_and_compare(&mut l)
 }
 
 #[test]
 fn terminating_spaces() -> Result<()> {
-    let dir = tempfile::tempdir().unwrap();
+    let (dir, mut l) = temp_loader();
     std::fs::write(
         dir.path().join("all-types.logix"),
         format!("{ALL_TYPES_FILE}   \n  \n \t\t  \n  \n\n\n\n"),
     )
     .unwrap();
-    load_and_compare(&mut LogixLoader::new(RelFs::new(dir.path())))
+    load_and_compare(&mut l)
 }

@@ -1,4 +1,4 @@
-use std::ops::Range;
+use std::{ops::Range, path::Path};
 
 use crate::{
     error::{ParseError, Result, Wanted, Warn},
@@ -13,7 +13,7 @@ use logix_vfs::LogixVfs;
 use smol_str::SmolStr;
 
 pub struct LogixParser<'fs, 'f, FS: LogixVfs> {
-    _loader: &'fs mut LogixLoader<FS>,
+    loader: &'fs mut LogixLoader<FS>,
     file: &'f CachedFile,
     cur_pos: usize,
     cur_col: usize,
@@ -25,7 +25,7 @@ pub struct LogixParser<'fs, 'f, FS: LogixVfs> {
 impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
     pub(crate) fn new(loader: &'fs mut LogixLoader<FS>, file: &'f CachedFile) -> Self {
         Self {
-            _loader: loader,
+            loader,
             file,
             cur_pos: 0,
             cur_col: 0,
@@ -92,6 +92,7 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
                 return match token {
                     Ok(
                         token @ (Token::Ident(..)
+                        | Token::Action(..)
                         | Token::Brace { .. }
                         | Token::Delim(..)
                         | Token::Literal(..)),
@@ -111,6 +112,25 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
                 };
             }
         }
+    }
+
+    // TODO(2023.10): Switch to using this where possible
+    pub fn req_wrapped<R>(
+        &mut self,
+        while_parsing: &'static str,
+        brace: Brace,
+        f: impl FnOnce(&mut Self) -> Result<R>,
+    ) -> Result<R> {
+        self.req_token(while_parsing, Token::Brace { start: true, brace })?;
+        let ret = f(self)?;
+        self.req_token(
+            while_parsing,
+            Token::Brace {
+                start: false,
+                brace,
+            },
+        )?;
+        Ok(ret)
     }
 
     pub fn req_token(
@@ -178,6 +198,10 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
                 got_token: got_token.token_type_name(),
             }),
         }
+    }
+
+    pub(crate) fn open_file(&mut self, path: impl AsRef<Path>) -> Result<CachedFile> {
+        self.loader.open_file(path)
     }
 }
 

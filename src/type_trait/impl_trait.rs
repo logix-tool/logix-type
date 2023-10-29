@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use super::{
     Brace, Literal, LogixParser, LogixType, LogixTypeDescriptor, LogixValueDescriptor, LogixVfs,
     Map, ParseError, Result, Str, StrTag, Token, Value, Wanted, Warn,
@@ -6,11 +8,13 @@ use super::{
 macro_rules! impl_for_str {
     ($($type:ty),+) => {$(
         impl LogixType for $type {
-            const DESCRIPTOR: &'static LogixTypeDescriptor = &LogixTypeDescriptor {
-                name: "string",
-                doc: "a valid utf-8 string",
-                value: LogixValueDescriptor::Native,
-            };
+            fn descriptor() -> &'static LogixTypeDescriptor {
+                &LogixTypeDescriptor {
+                    name: "string",
+                    doc: "a valid utf-8 string",
+                    value: LogixValueDescriptor::Native,
+                }
+            }
 
             fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<Self>> {
                 Ok(match p.next_token()? {
@@ -34,6 +38,8 @@ macro_rules! impl_for_str {
                             span,
                         }
                     }
+                    (span, Token::Action(name)) => crate::action::for_string_data(name, span, p)
+                        .map(|Value { span, value }| Value { span, value: value.into() })?,
                     (span, token) => return Err(ParseError::UnexpectedToken {
                         span,
                         while_parsing: "string",
@@ -48,14 +54,53 @@ macro_rules! impl_for_str {
 
 impl_for_str!(String, Str);
 
+impl LogixType for PathBuf {
+    fn descriptor() -> &'static LogixTypeDescriptor {
+        static RET: LogixTypeDescriptor = LogixTypeDescriptor {
+            name: "path",
+            doc: "a valid path",
+            value: LogixValueDescriptor::Native,
+        };
+        &RET
+    }
+
+    fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<Self>> {
+        Ok(match p.next_token()? {
+            (span, Token::Literal(Literal::Str(StrTag::Raw, value))) => Value {
+                value: PathBuf::from(value),
+                span,
+            },
+            (span, Token::Literal(Literal::Str(StrTag::Esc, value))) => Value {
+                value: crate::string::esc::decode_str(value)
+                    .map_err(|(off, len, error)| ParseError::StrEscError {
+                        span: span.with_off(off, len),
+                        error,
+                    })?
+                    .into(),
+                span,
+            },
+            (span, token) => {
+                return Err(ParseError::UnexpectedToken {
+                    span,
+                    while_parsing: "path",
+                    wanted: Wanted::LitStr,
+                    got_token: token.token_type_name(),
+                })
+            }
+        })
+    }
+}
+
 macro_rules! impl_for_int {
     ($signed:literal => $($type:ty),+) => {$(
         impl LogixType for $type {
-            const DESCRIPTOR: &'static LogixTypeDescriptor = &LogixTypeDescriptor {
-                name: stringify!($type),
-                doc: "",
-                value: LogixValueDescriptor::Native,
-            };
+            fn descriptor() -> &'static LogixTypeDescriptor {
+                &LogixTypeDescriptor {
+                    name: stringify!($type),
+                    doc: "",
+                    value: LogixValueDescriptor::Native,
+                }
+            }
 
             fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<Self>> {
                 match p.next_token()? {
@@ -67,7 +112,7 @@ macro_rules! impl_for_int {
                         span,
                         got_token: token.token_type_name(),
                         wanted: Wanted::LitNum(concat!($signed, " integer")),
-                        while_parsing: Self::DESCRIPTOR.name,
+                        while_parsing: Self::descriptor().name,
                     }),
                 }
             }
@@ -79,11 +124,14 @@ impl_for_int!("signed" => i8, i16, i32, i64);
 impl_for_int!("unsigned" => u8, u16, u32, u64);
 
 impl<T: LogixType> LogixType for Map<T> {
-    const DESCRIPTOR: &'static LogixTypeDescriptor = &LogixTypeDescriptor {
-        name: "string",
-        doc: "a valid utf-8 string",
-        value: LogixValueDescriptor::Native,
-    };
+    fn descriptor() -> &'static LogixTypeDescriptor {
+        static RET: LogixTypeDescriptor = LogixTypeDescriptor {
+            name: "string",
+            doc: "a valid utf-8 string",
+            value: LogixValueDescriptor::Native,
+        };
+        &RET
+    }
 
     fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<Self>> {
         let mut map = Map::new();
