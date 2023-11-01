@@ -9,6 +9,7 @@ mod span;
 mod string;
 mod token;
 mod type_trait;
+pub mod types;
 
 pub use crate::loader::LogixLoader;
 pub use logix_type_derive::LogixType;

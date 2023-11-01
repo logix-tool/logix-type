@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use logix_type::{error::Result, LogixLoader, LogixType, Map, Str};
+use logix_type::{error::Result, types::Data, LogixLoader, LogixType, Map, Str};
 use logix_vfs::{LogixVfs, RelFs};
 
 static ALL_TYPES_FILE: &str = include_str!("include/all-types.logix");
@@ -40,6 +40,8 @@ struct Root {
     very_long_escape2: String,
     tagged_strings: Map<String>,
     included_string: String,
+    data_by_path_str: Data<String>,
+    data_inline_str: Data<String>,
 }
 
 #[derive(logix_type::LogixType, PartialEq, Debug)]
@@ -134,6 +136,8 @@ fn expected_root() -> Root {
             (Str::new("txt"), "this is \\n txt".to_owned()),
         ].into(),
         included_string: "Hello, this is a plain text file\n".into(),
+        data_by_path_str: Data::ByPath("text-file.txt".into()),
+        data_inline_str: Data::Inline("inline string".into()),
     }
 }
 
@@ -180,6 +184,8 @@ fn load_and_compare(loader: &mut LogixLoader<impl LogixVfs>) -> Result<()> {
         very_long_escape2,
         tagged_strings,
         included_string,
+        data_by_path_str,
+        data_inline_str,
     } = loader.load_file("all-types.logix")?;
     assert_eq!(type_i8, expected.type_i8);
     assert_eq!(type_u8, expected.type_u8);
@@ -222,6 +228,8 @@ fn load_and_compare(loader: &mut LogixLoader<impl LogixVfs>) -> Result<()> {
     }
 
     assert_eq!(included_string, expected.included_string);
+    assert_eq!(data_by_path_str, expected.data_by_path_str);
+    assert_eq!(data_inline_str, expected.data_inline_str);
 
     Ok(())
 }

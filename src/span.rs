@@ -132,20 +132,28 @@ impl SourceSpan {
 
     pub(crate) fn from_pos(file: &CachedFile, pos: usize) -> SourceSpan {
         let mut cur = 0;
-        for (i, line) in file.data().lines_with_terminator().enumerate() {
+        let mut ln = 1;
+        let mut col = 0..0;
+
+        for line in file.data().lines_with_terminator() {
             let range = cur..cur + line.len();
+
             if range.contains(&pos) {
-                let col = u16::try_from(pos - range.start).unwrap();
-                return Self {
-                    file: file.clone(),
-                    pos,
-                    line: i + 1,
-                    col: col..col + 1,
-                };
+                let start = u16::try_from(pos - range.start).unwrap();
+                col = start..start + 1;
+                break;
             }
+
             cur = range.end;
+            ln += 1;
         }
-        todo!()
+
+        Self {
+            file: file.clone(),
+            pos,
+            line: ln,
+            col,
+        }
     }
 }
 

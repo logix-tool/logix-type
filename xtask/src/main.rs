@@ -36,8 +36,8 @@ static ACTIONS: &[(&str, &[Action])] = &[
         &[
             RunAction("lints"),
             RunAction("build-all"),
-            RunAction("all-checks"),
             RunAction("all-tests"),
+            RunAction("all-checks"),
         ],
     ),
     (

@@ -12,9 +12,8 @@ use bstr::ByteSlice;
 use logix_vfs::LogixVfs;
 use smol_str::SmolStr;
 
-pub struct LogixParser<'fs, 'f, FS: LogixVfs> {
-    loader: &'fs mut LogixLoader<FS>,
-    file: &'f CachedFile,
+#[derive(Clone)]
+struct ParseState {
     cur_pos: usize,
     cur_col: usize,
     cur_ln: usize,
@@ -22,16 +21,24 @@ pub struct LogixParser<'fs, 'f, FS: LogixVfs> {
     eof: bool,
 }
 
+pub struct LogixParser<'fs, 'f, FS: LogixVfs> {
+    loader: &'fs mut LogixLoader<FS>,
+    file: &'f CachedFile,
+    state: ParseState,
+}
+
 impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
     pub(crate) fn new(loader: &'fs mut LogixLoader<FS>, file: &'f CachedFile) -> Self {
         Self {
             loader,
             file,
-            cur_pos: 0,
-            cur_col: 0,
-            cur_ln: 1,
-            last_was_newline: true,
-            eof: false,
+            state: ParseState {
+                cur_pos: 0,
+                cur_col: 0,
+                cur_ln: 1,
+                last_was_newline: true,
+                eof: false,
+            },
         }
     }
 
@@ -43,23 +50,23 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
     fn cur_span(&self, range: Range<usize>) -> SourceSpan {
         SourceSpan::new(
             self.file,
-            self.cur_pos + range.start,
-            self.cur_ln,
-            self.cur_col + range.start,
+            self.state.cur_pos + range.start,
+            self.state.cur_ln,
+            self.state.cur_col + range.start,
             range.len(),
         )
     }
 
     pub fn next_token(&mut self) -> Result<(SourceSpan, Token)> {
-        if self.eof {
+        if self.state.eof {
             return Ok((self.cur_span(0..0), Token::Newline(true)));
         }
 
         'outer: loop {
-            let last_was_newline = std::mem::take(&mut self.last_was_newline);
+            let last_was_newline = std::mem::take(&mut self.state.last_was_newline);
 
             'ignore_token: loop {
-                let buf = &self.file.data()[self.cur_pos..];
+                let buf = &self.file.data()[self.state.cur_pos..];
                 let (span, token) = {
                     let ParseRes {
                         len,
@@ -69,22 +76,22 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
                     } = parse_token(buf);
                     let span = self.cur_span(range);
 
-                    self.cur_pos += len;
+                    self.state.cur_pos += len;
                     if lines > 0 {
                         debug_assert_ne!(len, 0);
 
-                        self.cur_ln += lines;
+                        self.state.cur_ln += lines;
                         if len == 1 {
-                            self.cur_col = 0;
+                            self.state.cur_col = 0;
                         } else {
-                            self.cur_col = self.file.data()[..self.cur_pos]
+                            self.state.cur_col = self.file.data()[..self.state.cur_pos]
                                 .lines()
                                 .next_back()
                                 .unwrap()
                                 .len();
                         }
                     } else {
-                        self.cur_col += len;
+                        self.state.cur_col += len;
                     }
                     (span, token)
                 };
@@ -98,11 +105,11 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
                         | Token::Literal(..)),
                     ) => Ok((span, token)),
                     Ok(Token::Newline(eof)) => {
-                        self.last_was_newline = true;
+                        self.state.last_was_newline = true;
                         if !eof && last_was_newline {
                             continue 'outer;
                         }
-                        self.eof = eof;
+                        self.state.eof = eof;
                         Ok((span, Token::Newline(eof)))
                     }
                     Ok(Token::Comment(_)) => {
@@ -202,6 +209,28 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
 
     pub(crate) fn open_file(&mut self, path: impl AsRef<Path>) -> Result<CachedFile> {
         self.loader.open_file(path)
+    }
+
+    pub(crate) fn forked<R>(
+        &mut self,
+        f: impl FnOnce(&mut LogixParser<'_, '_, FS>) -> Result<Option<R>>,
+    ) -> Result<Option<R>> {
+        let mut fork = LogixParser {
+            loader: self.loader,
+            file: self.file,
+            state: self.state.clone(),
+        };
+        if let Some(ret) = f(&mut fork)? {
+            let LogixParser {
+                loader: _,
+                file: _,
+                state,
+            } = fork;
+            self.state = state;
+            Ok(Some(ret))
+        } else {
+            Ok(None)
+        }
     }
 }
 

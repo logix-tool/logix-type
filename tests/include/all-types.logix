@@ -75,4 +75,6 @@ Root {
     txt: #txt"this is \n txt"#
   }
   included_string: @include("text-file.txt")
+  data_by_path_str: ByPath("text-file.txt")
+  data_inline_str: "inline string"
 }
