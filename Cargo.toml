@@ -14,9 +14,9 @@ categories = ["parsing", "config", "parser-implementations"]
 
 [dependencies]
 bstr = "1.7.0"
-indexmap = "2.0.2"
+indexmap = "2.1.0"
 logix-type-derive = { path = "derive", version = "=0.2.0" }
-logix-vfs = "0.5.0"
+logix-vfs = "0.5.1"
 owo-colors = { version = "4.0.0-rc.1", features = ["alloc"] }
 smol_str = "0.2.0"
 textwrap = "0.16.0"
