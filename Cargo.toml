@@ -1,6 +1,6 @@
 [package]
 name = "logix-type"
-version = "0.3.0"
+version = "0.3.1"
 description = "Provides the `LogixType` trait and the parser for `.logix` files, aimed at enabling easy-to-read-and-write configurations for `logix`."
 repository = "https://github.com/logix-tool/logix-type"
 edition = "2021"
@@ -15,7 +15,7 @@ categories = ["parsing", "config", "parser-implementations"]
 [dependencies]
 bstr = "1.8.0"
 indexmap = "2.1.0"
-logix-type-derive = { path = "derive", version = "=0.3.0" }
+logix-type-derive = { path = "derive", version = "=0.3.1" }
 logix-vfs = "0.6.0"
 owo-colors = { version = "4.0.0-rc.1", features = ["alloc"] }
 smol_str = "0.2.0"
