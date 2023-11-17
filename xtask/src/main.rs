@@ -34,6 +34,7 @@ static ACTIONS: &[(&str, &[Action])] = &[
     (
         "before-pr",
         &[
+            Cargo("update", &[]),
             RunAction("lints"),
             RunAction("build-all"),
             RunAction("all-tests"),

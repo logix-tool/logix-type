@@ -82,7 +82,7 @@ impl<FS: LogixVfs> LogixLoader<FS> {
                 self.tmp.clear();
                 let mut r = self.fs.open_file(entry.key())?;
                 r.read_to_end(&mut self.tmp)
-                    .map_err(logix_vfs::Error::from)?;
+                    .map_err(|e| logix_vfs::Error::from_io(entry.key().to_path_buf(), e))?;
                 let data = entry.insert(Arc::from(self.tmp.as_slice())).clone();
                 Ok(CachedFile { path, data })
             }

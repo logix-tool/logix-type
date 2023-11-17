@@ -263,7 +263,7 @@ pub enum Warn {
 
 #[cfg(test)]
 mod tests {
-    use std::error::Error;
+    use std::{error::Error, path::PathBuf};
 
     use super::*;
 
@@ -286,9 +286,11 @@ mod tests {
             "DuplicateMapEntry { span: SourceSpan { file: CachedFile(\"\"), pos: 0, line: 0, col: 0..0 }, key: \"test\" }",
         );
         assert_eq!(
-            ParseError::FsError(logix_vfs::Error::NotFound)
-                .source()
-                .map(|e| e.to_string()),
+            ParseError::FsError(logix_vfs::Error::NotFound {
+                path: PathBuf::new()
+            })
+            .source()
+            .map(|e| e.to_string()),
             None,
         );
     }
