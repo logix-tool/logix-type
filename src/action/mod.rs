@@ -4,6 +4,7 @@ use logix_vfs::LogixVfs;
 
 use crate::{
     error::{IncludeError, ParseError, Result},
+    loader::CachedFile,
     parser::LogixParser,
     span::SourceSpan,
     token::{Action, Brace},
@@ -11,12 +12,21 @@ use crate::{
     LogixType,
 };
 
-pub fn for_include<FS: LogixVfs>(
+pub(crate) fn for_include<FS: LogixVfs>(
     span: SourceSpan,
     p: &mut LogixParser<FS>,
-) -> Result<Value<PathBuf>> {
-    p.req_wrapped("@include", Brace::Paren, PathBuf::logix_parse)
-        .map(|v| v.join_with_span(span))
+) -> Result<Value<(PathBuf, CachedFile)>> {
+    let path = p
+        .req_wrapped("@include", Brace::Paren, PathBuf::logix_parse)
+        .map(|v| v.join_with_span(span))?;
+    let file = p
+        .open_file(&path.value)
+        .map_err(|error| ParseError::IncludeError {
+            span: path.span.clone(),
+            while_parsing: "string",
+            error: IncludeError::Open(error),
+        })?;
+    Ok(path.map(|p| (p, file)))
 }
 
 pub fn for_string_data<FS: LogixVfs>(
@@ -26,13 +36,12 @@ pub fn for_string_data<FS: LogixVfs>(
 ) -> Result<Value<String>> {
     match action {
         Action::Include => {
-            let path = for_include(span, p)?;
-            let file = p.open_file(&path.value)?;
+            let file = for_include(span, p)?;
             Ok(Value {
-                span: path.span,
-                value: std::str::from_utf8(file.data())
+                span: file.span,
+                value: std::str::from_utf8(file.value.1.data())
                     .map_err(|e| ParseError::IncludeError {
-                        span: SourceSpan::from_pos(&file, e.valid_up_to()),
+                        span: SourceSpan::from_pos(&file.value.1, e.valid_up_to()),
                         while_parsing: "string",
                         error: IncludeError::NotUtf8,
                     })?

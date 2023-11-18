@@ -2,6 +2,7 @@ use std::{fmt, path::PathBuf};
 
 use logix_type::{
     error::{EscStrError, IncludeError, ParseError, SourceSpan, TokenError, Wanted, Warn},
+    types::Data,
     LogixLoader, LogixType, Map, Str,
     __private::{Brace, Delim, StrTag, StrTagSuffix, Token},
 };

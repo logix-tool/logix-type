@@ -9,7 +9,7 @@ use crate::{
     Str,
 };
 
-pub type Result<T> = std::result::Result<T, ParseError>;
+pub type Result<T, E = ParseError> = std::result::Result<T, E>;
 
 #[derive(Error, PartialEq, Debug)]
 pub enum TokenError {
@@ -49,6 +49,9 @@ pub enum EscStrError {
 pub enum IncludeError {
     #[error("invalid utf-8 sequence")]
     NotUtf8,
+
+    #[error(transparent)]
+    Open(logix_vfs::Error),
 }
 
 #[derive(Debug, PartialEq)]

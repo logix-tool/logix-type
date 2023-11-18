@@ -72,7 +72,10 @@ impl<FS: LogixVfs> LogixLoader<FS> {
         })
     }
 
-    pub(crate) fn open_file(&mut self, path: impl AsRef<Path>) -> Result<CachedFile, ParseError> {
+    pub(crate) fn open_file(
+        &mut self,
+        path: impl AsRef<Path>,
+    ) -> Result<CachedFile, logix_vfs::Error> {
         match self
             .files
             .entry(Arc::<Path>::from(self.fs.canonicalize_path(path.as_ref())?))

@@ -122,7 +122,7 @@ impl SourceSpan {
         if ret.line == other.line {
             ret.pos = other.pos.min(ret.pos);
             ret.col.start = other.col.start.min(ret.col.start);
-            ret.col.end = other.col.end.min(ret.col.end);
+            ret.col.end = other.col.end.max(ret.col.end);
         } else {
             todo!()
         }

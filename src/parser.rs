@@ -126,18 +126,18 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
         &mut self,
         while_parsing: &'static str,
         brace: Brace,
-        f: impl FnOnce(&mut Self) -> Result<R>,
-    ) -> Result<R> {
-        self.req_token(while_parsing, Token::Brace { start: true, brace })?;
+        f: impl FnOnce(&mut Self) -> Result<Value<R>>,
+    ) -> Result<Value<R>> {
+        let start = self.req_token(while_parsing, Token::Brace { start: true, brace })?;
         let ret = f(self)?;
-        self.req_token(
+        let end = self.req_token(
             while_parsing,
             Token::Brace {
                 start: false,
                 brace,
             },
         )?;
-        Ok(ret)
+        Ok(ret.join_with_span(start).join_with_span(end))
     }
 
     pub fn req_token(
@@ -207,7 +207,10 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
         }
     }
 
-    pub(crate) fn open_file(&mut self, path: impl AsRef<Path>) -> Result<CachedFile> {
+    pub(crate) fn open_file(
+        &mut self,
+        path: impl AsRef<Path>,
+    ) -> Result<CachedFile, logix_vfs::Error> {
         self.loader.open_file(path)
     }
 

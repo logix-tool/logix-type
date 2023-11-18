@@ -28,8 +28,8 @@ impl<T: LogixType> LogixType for Data<T> {
     fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<Self>> {
         if let Some(ret) = p.forked(|p| match p.next_token()? {
             (span, Token::Action(Action::Include)) => {
-                let path = crate::action::for_include(span, p)?;
-                Ok(Some(path.map(Data::ByPath)))
+                let file = crate::action::for_include(span, p)?;
+                Ok(Some(file.map(|f| Data::ByPath(f.0))))
             }
             _ => Ok(None),
         })? {
