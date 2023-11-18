@@ -11,6 +11,14 @@ use crate::{
     LogixType,
 };
 
+pub fn for_include<FS: LogixVfs>(
+    span: SourceSpan,
+    p: &mut LogixParser<FS>,
+) -> Result<Value<PathBuf>> {
+    p.req_wrapped("@include", Brace::Paren, PathBuf::logix_parse)
+        .map(|v| v.join_with_span(span))
+}
+
 pub fn for_string_data<FS: LogixVfs>(
     action: Action,
     span: SourceSpan,
@@ -18,10 +26,10 @@ pub fn for_string_data<FS: LogixVfs>(
 ) -> Result<Value<String>> {
     match action {
         Action::Include => {
-            let path = p.req_wrapped("@include", Brace::Paren, PathBuf::logix_parse)?;
+            let path = for_include(span, p)?;
             let file = p.open_file(&path.value)?;
             Ok(Value {
-                span: span.join(&path.span),
+                span: path.span,
                 value: std::str::from_utf8(file.data())
                     .map_err(|e| ParseError::IncludeError {
                         span: SourceSpan::from_pos(&file, e.valid_up_to()),

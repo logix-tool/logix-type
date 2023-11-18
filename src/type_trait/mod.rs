@@ -14,6 +14,20 @@ pub struct Value<T> {
     pub span: SourceSpan,
 }
 
+impl<T> Value<T> {
+    pub fn map<R>(self, f: impl FnOnce(T) -> R) -> Value<R> {
+        Value {
+            span: self.span,
+            value: f(self.value),
+        }
+    }
+
+    pub fn join_with_span(mut self, span: SourceSpan) -> Self {
+        self.span = self.span.join(&span);
+        self
+    }
+}
+
 pub enum LogixValueDescriptor {
     Native,
     Tuple {

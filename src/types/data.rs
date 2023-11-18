@@ -5,7 +5,7 @@ use logix_vfs::LogixVfs;
 use crate::{
     error::Result,
     parser::LogixParser,
-    token::{Brace, Token},
+    token::{Action, Token},
     type_trait::{LogixTypeDescriptor, Value},
     LogixType,
 };
@@ -23,14 +23,10 @@ impl<T: LogixType> LogixType for Data<T> {
 
     fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<Self>> {
         if let Some(ret) = p.forked(|p| match p.next_token()? {
-            (_, Token::Ident("ByPath")) => p
-                .req_wrapped("ByPath", Brace::Paren, PathBuf::logix_parse)
-                .map(|Value { span, value }| {
-                    Some(Value {
-                        span,
-                        value: Self::ByPath(value),
-                    })
-                }),
+            (span, Token::Action(Action::Include)) => {
+                let path = crate::action::for_include(span, p)?;
+                Ok(Some(path.map(Data::ByPath)))
+            }
             _ => Ok(None),
         })? {
             Ok(ret)
