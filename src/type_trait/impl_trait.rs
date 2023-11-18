@@ -16,6 +16,10 @@ macro_rules! impl_for_str {
                 }
             }
 
+            fn default_value() -> Option<Self> {
+                None
+            }
+
             fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<Self>> {
                 Ok(match p.next_token()? {
                     (span, Token::Literal(Literal::Str(StrTag::Raw, value))) => Value {
@@ -64,6 +68,10 @@ impl LogixType for PathBuf {
         &RET
     }
 
+    fn default_value() -> Option<Self> {
+        None
+    }
+
     fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<Self>> {
         Ok(match p.next_token()? {
             (span, Token::Literal(Literal::Str(StrTag::Raw, value))) => Value {
@@ -102,6 +110,10 @@ macro_rules! impl_for_int {
                 }
             }
 
+            fn default_value() -> Option<Self> {
+                None
+            }
+
             fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<Self>> {
                 match p.next_token()? {
                     (span, Token::Literal(Literal::Num(num))) => Ok(Value {
@@ -133,6 +145,10 @@ impl<T: LogixType> LogixType for Map<T> {
         &RET
     }
 
+    fn default_value() -> Option<Self> {
+        Some(Self::new())
+    }
+
     fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<Self>> {
         let mut map = Map::new();
 
@@ -158,5 +174,19 @@ impl<T: LogixType> LogixType for Map<T> {
             value: map,
             span: start,
         })
+    }
+}
+
+impl<T: LogixType> LogixType for Option<T> {
+    fn descriptor() -> &'static LogixTypeDescriptor {
+        T::descriptor()
+    }
+
+    fn default_value() -> Option<Self> {
+        Some(None)
+    }
+
+    fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<Self>> {
+        T::logix_parse(p).map(|v| v.map(Some))
     }
 }

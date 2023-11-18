@@ -59,6 +59,10 @@ pub fn impl_logix_type(input: TokenStream) -> TokenStream {
                 RET.get_or_init(|| #descriptor)
             }
 
+            fn default_value() -> Option<Self> {
+                None
+            }
+
             fn logix_parse<FS: #cr::LogixVfs>(p: &mut #cr::LogixParser<FS>) -> #cr::Result<#cr::Value<Self>> {
                 use #cr::{Token, ParseError, Brace, LogixType, Wanted, Delim};
                 #parse

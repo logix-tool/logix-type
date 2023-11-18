@@ -86,14 +86,16 @@ pub(crate) fn do_named(
             }
             tmp.#fname = Some(<#ty as #cr::LogixType>::logix_parse(p)?.value)
         ));
+        member_tmp_assign.push(quote!(
+            tmp.#fname
+                .or_else(|| <#ty as #cr::LogixType>::default_value())
+                .ok_or_else(|| ParseError::MissingStructMember {
+                    span: curly_span.clone(),
+                    type_name: #type_name_str,
+                    member: #fname_str,
+                })?
+        ));
         member_tmp_types.push(ty);
-        member_tmp_assign.push(
-            quote!(tmp.#fname.ok_or_else(|| ParseError::MissingStructMember {
-                span: curly_span.clone(),
-                type_name: #type_name_str,
-                member: #fname_str,
-            })?),
-        );
         member_names.push(fname);
         member_str_names.push(fname_str);
     }

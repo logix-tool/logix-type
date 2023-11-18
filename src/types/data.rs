@@ -21,6 +21,10 @@ impl<T: LogixType> LogixType for Data<T> {
         T::descriptor()
     }
 
+    fn default_value() -> Option<Self> {
+        None
+    }
+
     fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<Self>> {
         if let Some(ret) = p.forked(|p| match p.next_token()? {
             (span, Token::Action(Action::Include)) => {

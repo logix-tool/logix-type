@@ -77,4 +77,5 @@ Root {
   included_string: @include("text-file.txt")
   data_by_path_str: @include("text-file.txt")
   data_inline_str: "inline string"
+  opt_i32_set: 99
 }

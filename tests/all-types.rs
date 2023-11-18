@@ -42,6 +42,8 @@ struct Root {
     included_string: String,
     data_by_path_str: Data<String>,
     data_inline_str: Data<String>,
+    opt_i32_none: Option<i32>,
+    opt_i32_set: Option<i32>,
 }
 
 #[derive(logix_type::LogixType, PartialEq, Debug)]
@@ -138,6 +140,8 @@ fn expected_root() -> Root {
         included_string: "Hello, this is a plain text file\n".into(),
         data_by_path_str: Data::ByPath("text-file.txt".into()),
         data_inline_str: Data::Inline("inline string".into()),
+        opt_i32_none: None,
+        opt_i32_set: Some(99),
     }
 }
 
@@ -186,6 +190,8 @@ fn load_and_compare(loader: &mut LogixLoader<impl LogixVfs>) -> Result<()> {
         included_string,
         data_by_path_str,
         data_inline_str,
+        opt_i32_none,
+        opt_i32_set,
     } = loader.load_file("all-types.logix")?;
     assert_eq!(type_i8, expected.type_i8);
     assert_eq!(type_u8, expected.type_u8);
@@ -230,6 +236,9 @@ fn load_and_compare(loader: &mut LogixLoader<impl LogixVfs>) -> Result<()> {
     assert_eq!(included_string, expected.included_string);
     assert_eq!(data_by_path_str, expected.data_by_path_str);
     assert_eq!(data_inline_str, expected.data_inline_str);
+
+    assert_eq!(opt_i32_none, expected.opt_i32_none);
+    assert_eq!(opt_i32_set, expected.opt_i32_set);
 
     Ok(())
 }

@@ -49,5 +49,6 @@ pub struct LogixTypeDescriptor {
 
 pub trait LogixType: Sized {
     fn descriptor() -> &'static LogixTypeDescriptor;
+    fn default_value() -> Option<Self>;
     fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<Self>>;
 }
