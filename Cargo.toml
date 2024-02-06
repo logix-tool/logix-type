@@ -1,6 +1,6 @@
 [package]
 name = "logix-type"
-version = "0.4.1"
+version = "0.4.2"
 description = "Provides the `LogixType` trait and the parser for `.logix` files, aimed at enabling easy-to-read-and-write configurations for `logix`."
 repository = "https://github.com/logix-tool/logix-type"
 edition = "2021"
@@ -13,18 +13,18 @@ license = "MPL-2.0"
 categories = ["parsing", "config", "parser-implementations"]
 
 [dependencies]
-bstr = "1.8.0"
-indexmap = "2.1.0"
-logix-type-derive = { path = "derive", version = "=0.4.1" }
-logix-vfs = "0.6.0"
-owo-colors = { version = "4.0.0-rc.1", features = ["alloc"] }
-smol_str = "0.2.0"
+bstr = "1.9.0"
+indexmap = "2.2.2"
+logix-type-derive = { path = "derive", version = "=0.4.2" }
+logix-vfs = "0.6.1"
+owo-colors = { version = "4.0.0", features = ["alloc"] }
+smol_str = "0.2.1"
 textwrap = "0.16.0"
-thiserror = "1.0.50"
+thiserror = "1.0.56"
 
 [dev-dependencies]
 strip-ansi-escapes = "0.2.0"
-tempfile = "3.8.1"
+tempfile = "3.10.0"
 
 [workspace]
 members = [
