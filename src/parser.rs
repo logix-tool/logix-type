@@ -246,7 +246,7 @@ mod tests {
     use super::*;
 
     fn s(file: &CachedFile, pos: usize, ln: usize, start: usize, len: usize) -> SourceSpan {
-        SourceSpan::new(&file, pos, ln, start, len)
+        SourceSpan::new(file, pos, ln, start, len)
     }
 
     #[test]

@@ -4,6 +4,7 @@ use super::*;
 use std::{
     collections::HashMap,
     io::{Error, ErrorKind},
+    path::Path,
     sync::Mutex,
 };
 
@@ -14,6 +15,7 @@ struct FailFs {
 
 impl LogixVfs for FailFs {
     type RoFile = FailFile;
+    type ReadDir = FailReadDir;
 
     fn canonicalize_path(
         &self,
@@ -22,13 +24,17 @@ impl LogixVfs for FailFs {
         Ok(path.into())
     }
 
-    fn open_file(&self, path: &std::path::Path) -> Result<Self::RoFile, logix_vfs::Error> {
+    fn open_file(&self, path: &Path) -> Result<Self::RoFile, logix_vfs::Error> {
         Ok(self
             .files
             .lock()
             .unwrap()
             .remove(path.to_str().unwrap())
             .unwrap())
+    }
+
+    fn read_dir(&self, _path: &Path) -> Result<Self::ReadDir, logix_vfs::Error> {
+        panic!("Not currently needed")
     }
 }
 
@@ -40,6 +46,19 @@ struct FailFile {
 impl std::io::Read for FailFile {
     fn read(&mut self, _buf: &mut [u8]) -> std::io::Result<usize> {
         Err(self.res.remove(0).unwrap_err())
+    }
+}
+
+#[derive(Debug)]
+struct FailReadDir {
+    it: std::vec::IntoIter<Result<PathBuf, logix_vfs::Error>>,
+}
+
+impl Iterator for FailReadDir {
+    type Item = Result<PathBuf, logix_vfs::Error>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.it.next()
     }
 }
 

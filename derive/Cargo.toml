@@ -1,6 +1,6 @@
 [package]
 name = "logix-type-derive"
-version = "0.4.2"
+version = "0.5.0"
 description = "Derive crate for logix-type, not intended to be used by anyone directly"
 repository = "https://github.com/logix-tool/logix-type"
 edition = "2021"

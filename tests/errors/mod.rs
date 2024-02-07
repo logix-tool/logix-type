@@ -1,3 +1,5 @@
+#![allow(clippy::useless_format)] // NOTE(2024.02): Only a performance issue, hence irrelevant for tests
+
 use super::*;
 
 mod comments;
