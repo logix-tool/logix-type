@@ -9,3 +9,4 @@ authors = [
 license = "MPL-2.0"
 
 [dependencies]
+logix-xtask = "0.1.0"
