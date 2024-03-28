@@ -1,6 +1,10 @@
 use std::path::PathBuf;
 
-use logix_type::{error::Result, types::Data, LogixLoader, LogixType, Map, Str};
+use logix_type::{
+    error::Result,
+    types::{Data, FullPath, NameOnlyPath, RelPath, ValidPath},
+    LogixLoader, LogixType, Map, Str,
+};
 use logix_vfs::{LogixVfs, RelFs};
 
 static ALL_TYPES_FILE: &str = include_str!("include/all-types.logix");
@@ -44,6 +48,13 @@ struct Root {
     data_inline_str: Data<String>,
     opt_i32_none: Option<i32>,
     opt_i32_set: Option<i32>,
+    full_path: FullPath,
+    rel_path1: RelPath,
+    rel_path2: RelPath,
+    name_only_path: NameOnlyPath,
+    valid_path_full: ValidPath,
+    valid_path_rel: ValidPath,
+    valid_path_name: ValidPath,
 }
 
 #[derive(logix_type::LogixType, PartialEq, Debug)]
@@ -142,6 +153,13 @@ fn expected_root() -> Root {
         data_inline_str: Data::Inline("inline string".into()),
         opt_i32_none: None,
         opt_i32_set: Some(99),
+        full_path: "/hello/world.txt".try_into().unwrap(),
+        rel_path1: "hello/world.txt".try_into().unwrap(),
+        rel_path2: "world.txt".try_into().unwrap(),
+        name_only_path: "world.txt".try_into().unwrap(),
+        valid_path_full: "/hello/world.txt".try_into().unwrap(),
+        valid_path_rel: "hello/world.txt".try_into().unwrap(),
+        valid_path_name: "world.txt".try_into().unwrap(),
     }
 }
 
@@ -192,6 +210,13 @@ fn load_and_compare(loader: &mut LogixLoader<impl LogixVfs>) -> Result<()> {
         data_inline_str,
         opt_i32_none,
         opt_i32_set,
+        full_path,
+        rel_path1,
+        rel_path2,
+        name_only_path,
+        valid_path_full,
+        valid_path_rel,
+        valid_path_name,
     } = loader.load_file("all-types.logix")?;
     assert_eq!(type_i8, expected.type_i8);
     assert_eq!(type_u8, expected.type_u8);
@@ -239,6 +264,14 @@ fn load_and_compare(loader: &mut LogixLoader<impl LogixVfs>) -> Result<()> {
 
     assert_eq!(opt_i32_none, expected.opt_i32_none);
     assert_eq!(opt_i32_set, expected.opt_i32_set);
+
+    assert_eq!(full_path, expected.full_path);
+    assert_eq!(rel_path1, expected.rel_path1);
+    assert_eq!(rel_path2, expected.rel_path2);
+    assert_eq!(name_only_path, expected.name_only_path);
+    assert_eq!(valid_path_full, expected.valid_path_full);
+    assert_eq!(valid_path_rel, expected.valid_path_rel);
+    assert_eq!(valid_path_name, expected.valid_path_name);
 
     Ok(())
 }

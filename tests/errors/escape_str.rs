@@ -79,6 +79,26 @@ fn escape_hex_pathbuf() {
     escape_hex::<PathBuf>();
 }
 
+#[test]
+fn escape_hex_full_path() {
+    escape_hex::<FullPath>();
+}
+
+#[test]
+fn escape_hex_rel_path() {
+    escape_hex::<RelPath>();
+}
+
+#[test]
+fn escape_hex_name_only_path() {
+    escape_hex::<NameOnlyPath>();
+}
+
+#[test]
+fn escape_hex_valid_path() {
+    escape_hex::<ValidPath>();
+}
+
 fn escape_unicode<T: LogixType + fmt::Debug>() {
     escape_str::<T>(
         r#""\u{z}""#,
@@ -159,6 +179,26 @@ fn escape_unicode_pathbuf() {
     escape_unicode::<PathBuf>();
 }
 
+#[test]
+fn escape_unicode_full_path() {
+    escape_unicode::<FullPath>();
+}
+
+#[test]
+fn escape_unicode_rel_path() {
+    escape_unicode::<RelPath>();
+}
+
+#[test]
+fn escape_unicode_name_only_path() {
+    escape_unicode::<NameOnlyPath>();
+}
+
+#[test]
+fn escape_unicode_valid_path() {
+    escape_unicode::<ValidPath>();
+}
+
 fn escape_char<T: LogixType + fmt::Debug>() {
     escape_str::<T>(
         r#""\k""#,
@@ -183,4 +223,24 @@ fn escape_char_str() {
 #[test]
 fn escape_char_pathbuf() {
     escape_char::<PathBuf>();
+}
+
+#[test]
+fn escape_char_full_path() {
+    escape_char::<FullPath>();
+}
+
+#[test]
+fn escape_char_rel_path() {
+    escape_char::<RelPath>();
+}
+
+#[test]
+fn escape_char_name_only_path() {
+    escape_char::<NameOnlyPath>();
+}
+
+#[test]
+fn escape_char_valid_path() {
+    escape_char::<ValidPath>();
 }

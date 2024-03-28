@@ -1,8 +1,10 @@
 use std::{fmt, path::PathBuf};
 
 use logix_type::{
-    error::{EscStrError, IncludeError, ParseError, SourceSpan, TokenError, Wanted, Warn},
-    types::Data,
+    error::{
+        EscStrError, IncludeError, ParseError, PathError, SourceSpan, TokenError, Wanted, Warn,
+    },
+    types::{Data, FullPath, NameOnlyPath, RelPath, ValidPath},
     LogixLoader, LogixType, Map, Str,
     __private::{Brace, Delim, StrTag, StrTagSuffix, Token},
 };

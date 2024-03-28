@@ -54,11 +54,33 @@ pub enum IncludeError {
     Open(logix_vfs::Error),
 }
 
+#[derive(Error, PartialEq, Debug, Clone, Copy)]
+pub enum PathError {
+    #[error("expected an absolute path")]
+    NotAbsolute,
+
+    #[error("expected a relative path")]
+    NotRelative,
+
+    #[error("the specified path is empty")]
+    EmptyPath,
+
+    #[error("expected either a file or directory name")]
+    NotName,
+
+    #[error("the path contains the invalid character {0:?}")]
+    InvalidChar(char),
+}
+
 #[derive(Debug, PartialEq)]
 pub enum Wanted {
     Token(Token<'static>),
     Tokens(&'static [Token<'static>]),
     LitStr,
+    FullPath,
+    RelPath,
+    NameOnlyPath,
+    ValidPath,
     LitNum(&'static str),
     Ident,
 }
@@ -88,6 +110,10 @@ impl fmt::Display for Wanted {
                 last.write_token_display_name(f)
             }
             Self::LitStr => write!(f, "string"),
+            Self::FullPath => write!(f, "full path"),
+            Self::RelPath => write!(f, "relative path"),
+            Self::NameOnlyPath => write!(f, "file or directory name"),
+            Self::ValidPath => write!(f, "path"),
             Self::LitNum(name) => write!(f, "{name}"),
             Self::Ident => write!(f, "identifier"),
         }
@@ -139,6 +165,9 @@ pub enum ParseError {
         while_parsing: &'static str,
         error: IncludeError,
     },
+
+    #[error("Failed to parse path, {error} in {span}")]
+    PathError { span: SourceSpan, error: PathError },
 }
 
 impl fmt::Debug for ParseError {
@@ -199,6 +228,7 @@ impl fmt::Debug for ParseError {
                 span,
                 error,
             ),
+            Self::PathError { span, error } => write_error(f, "Failed to parse path", span, error),
         }
     }
 }

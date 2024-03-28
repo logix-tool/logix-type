@@ -9,7 +9,7 @@ use crate::{
 mod esc;
 mod txt;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct StrLit<'a> {
     tag: StrTag,
     value: &'a str,

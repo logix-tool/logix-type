@@ -10,3 +10,4 @@ mod include_action;
 mod stray_token;
 mod string_lit;
 mod tagged_str;
+mod valid_paths;

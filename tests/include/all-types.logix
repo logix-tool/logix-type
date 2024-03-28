@@ -78,4 +78,11 @@ Root {
   data_by_path_str: @include("text-file.txt")
   data_inline_str: "inline string"
   opt_i32_set: 99
+  full_path: "/hello/world.txt"
+  rel_path1: "hello/world.txt"
+  rel_path2: "world.txt"
+  name_only_path: "world.txt"
+  valid_path_full: "/hello/world.txt"
+  valid_path_rel: "hello/world.txt"
+  valid_path_name: "world.txt"
 }

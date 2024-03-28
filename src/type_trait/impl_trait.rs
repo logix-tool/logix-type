@@ -1,5 +1,7 @@
 use std::path::PathBuf;
 
+use crate::types::ValidPath;
+
 use super::{
     Brace, Literal, LogixParser, LogixType, LogixTypeDescriptor, LogixValueDescriptor, LogixVfs,
     Map, ParseError, Result, Str, Token, Value, Wanted, Warn,
@@ -57,20 +59,7 @@ impl LogixType for PathBuf {
     }
 
     fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<Self>> {
-        Ok(match p.next_token()? {
-            (span, Token::Literal(Literal::Str(value))) => Value {
-                value: PathBuf::from(value.decode_str(&span)?.into_owned()),
-                span,
-            },
-            (span, token) => {
-                return Err(ParseError::UnexpectedToken {
-                    span,
-                    while_parsing: "path",
-                    wanted: Wanted::LitStr,
-                    got_token: token.token_type_name(),
-                })
-            }
-        })
+        Ok(ValidPath::logix_parse(p)?.map(|v| v.into()))
     }
 }
 
