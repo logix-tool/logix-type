@@ -17,6 +17,7 @@ impl<'a> PathLike<'a> for FullPath {}
 impl<'a> PathLike<'a> for RelPath {}
 impl<'a> PathLike<'a> for NameOnlyPath {}
 impl<'a> PathLike<'a> for ValidPath {}
+impl<'a> PathLike<'a> for ExecutablePath {}
 
 fn path_test<'a, T: PathLike<'a>>(
     path: &'a str,
@@ -182,4 +183,18 @@ fn load_name_only_path() {
 #[test]
 fn load_valid_path() {
     generic_errors_test::<ValidPath>(Wanted::ValidPath);
+}
+
+#[test]
+fn load_executable_path() {
+    path_test::<ExecutablePath>(
+        "hello/world.txt",
+        0,
+        17,
+        "^^^^^^^^^^^^^^^^^",
+        PathError::NotFullOrNameOnly,
+        "expected file name or absolute path",
+    );
+
+    generic_errors_test::<ExecutablePath>(Wanted::ExecutablePath);
 }

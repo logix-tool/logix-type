@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use logix_type::{
     error::Result,
-    types::{Data, FullPath, NameOnlyPath, RelPath, ValidPath},
+    types::{Data, ExecutablePath, FullPath, NameOnlyPath, RelPath, ValidPath},
     LogixLoader, LogixType, Map, Str,
 };
 use logix_vfs::{LogixVfs, RelFs};
@@ -55,6 +55,8 @@ struct Root {
     valid_path_full: ValidPath,
     valid_path_rel: ValidPath,
     valid_path_name: ValidPath,
+    executable1: ExecutablePath,
+    executable2: ExecutablePath,
 }
 
 #[derive(logix_type::LogixType, PartialEq, Debug)]
@@ -160,6 +162,8 @@ fn expected_root() -> Root {
         valid_path_full: "/hello/world.txt".try_into().unwrap(),
         valid_path_rel: "hello/world.txt".try_into().unwrap(),
         valid_path_name: "world.txt".try_into().unwrap(),
+        executable1: "logix".try_into().unwrap(),
+        executable2: "/usr/bin/logix".try_into().unwrap(),
     }
 }
 
@@ -217,6 +221,8 @@ fn load_and_compare(loader: &mut LogixLoader<impl LogixVfs>) -> Result<()> {
         valid_path_full,
         valid_path_rel,
         valid_path_name,
+        executable1,
+        executable2,
     } = loader.load_file("all-types.logix")?;
     assert_eq!(type_i8, expected.type_i8);
     assert_eq!(type_u8, expected.type_u8);
@@ -272,6 +278,9 @@ fn load_and_compare(loader: &mut LogixLoader<impl LogixVfs>) -> Result<()> {
     assert_eq!(valid_path_full, expected.valid_path_full);
     assert_eq!(valid_path_rel, expected.valid_path_rel);
     assert_eq!(valid_path_name, expected.valid_path_name);
+
+    assert_eq!(executable1, expected.executable1);
+    assert_eq!(executable2, expected.executable2);
 
     Ok(())
 }

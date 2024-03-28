@@ -1,11 +1,18 @@
 use logix_type::{
-    types::{FullPath, NameOnlyPath, RelPath, ValidPath},
+    types::{ExecutableEnv, ExecutablePath, FullPath, NameOnlyPath, RelPath, ValidPath},
     LogixType,
 };
 use std::{
+    borrow::Cow,
     ffi::OsStr,
     path::{Path, PathBuf},
 };
+
+fn which_env() -> ExecutableEnv<'static> {
+    ExecutableEnv {
+        path_env: Some(Cow::Borrowed(OsStr::new("/bin"))),
+    }
+}
 
 fn path_as_ref(v: &impl AsRef<Path>) -> &Path {
     v.as_ref()
@@ -66,4 +73,49 @@ fn valid_path_basics_rel() {
 #[test]
 fn valid_path_basics_name_only() {
     run_basic_tests!(ValidPath, "world.txt");
+}
+
+#[test]
+fn executable_basics_full() {
+    run_basic_tests!(ExecutablePath, "/bin/sh");
+
+    assert_eq!(
+        ExecutablePath::try_from("/bin/sh")
+            .unwrap()
+            .which(Some(&which_env())),
+        Some(FullPath::try_from("/bin/sh").unwrap())
+    );
+
+    assert_eq!(
+        ExecutablePath::try_from("/hello/super_duper_not_found_path_hopefully")
+            .unwrap()
+            .which(Some(&which_env())),
+        None,
+    );
+}
+
+#[test]
+fn executable_basics_name_only() {
+    run_basic_tests!(ExecutablePath, "sh");
+
+    assert_eq!(
+        ExecutablePath::try_from("sh")
+            .unwrap()
+            .which(Some(&which_env())),
+        Some(FullPath::try_from("/bin/sh").unwrap())
+    );
+
+    assert_eq!(
+        ExecutablePath::try_from("super_duper_not_found_path_hopefully")
+            .unwrap()
+            .which(Some(&which_env())),
+        None,
+    );
+
+    assert_eq!(
+        ExecutablePath::try_from("super_duper_not_found_path_hopefully")
+            .unwrap()
+            .which(Some(&ExecutableEnv { path_env: None })),
+        None
+    );
 }

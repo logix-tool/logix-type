@@ -70,6 +70,9 @@ pub enum PathError {
 
     #[error("the path contains the invalid character {0:?}")]
     InvalidChar(char),
+
+    #[error("expected file name or absolute path")]
+    NotFullOrNameOnly,
 }
 
 #[derive(Debug, PartialEq)]
@@ -79,6 +82,7 @@ pub enum Wanted {
     LitStr,
     FullPath,
     RelPath,
+    ExecutablePath,
     NameOnlyPath,
     ValidPath,
     LitNum(&'static str),
@@ -112,6 +116,7 @@ impl fmt::Display for Wanted {
             Self::LitStr => write!(f, "string"),
             Self::FullPath => write!(f, "full path"),
             Self::RelPath => write!(f, "relative path"),
+            Self::ExecutablePath => write!(f, "executable name or full path"),
             Self::NameOnlyPath => write!(f, "file or directory name"),
             Self::ValidPath => write!(f, "path"),
             Self::LitNum(name) => write!(f, "{name}"),

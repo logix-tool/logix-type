@@ -18,6 +18,7 @@ owo-colors = { version = "4.0.0", features = ["alloc"] }
 smol_str = "0.2.1"
 textwrap = "0.16.1"
 thiserror = "1.0.58"
+which = "6.0.1"
 
 [dev-dependencies]
 strip-ansi-escapes = "0.2.0"

@@ -85,4 +85,6 @@ Root {
   valid_path_full: "/hello/world.txt"
   valid_path_rel: "hello/world.txt"
   valid_path_name: "world.txt"
+  executable1: "logix"
+  executable2: "/usr/bin/logix"
 }
