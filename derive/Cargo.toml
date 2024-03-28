@@ -2,10 +2,10 @@
 name = "logix-type-derive"
 version.workspace = true
 description = "Derive crate for logix-type, not intended to be used by anyone directly"
-repository = "https://github.com/logix-tool/logix-type"
-edition = "2021"
+repository.workspace = true
+edition.workspace = true
 authors.workspace = true
-license = "MPL-2.0"
+license.workspace = true
 
 [lib]
 proc-macro = true

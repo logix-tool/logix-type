@@ -2,17 +2,17 @@
 name = "logix-type"
 version.workspace = true
 description = "Provides the `LogixType` trait and the parser for `.logix` files, aimed at enabling easy-to-read-and-write configurations for `logix`."
-repository = "https://github.com/logix-tool/logix-type"
-edition = "2021"
+repository.workspace = true
+edition.workspace = true
 authors.workspace = true
 readme = "README.md"
-license = "MPL-2.0"
+license.workspace = true
 categories = ["parsing", "config", "parser-implementations"]
 
 [dependencies]
 bstr = "1.9.1"
 indexmap = "2.2.6"
-logix-type-derive = { version = "0.6.0", path = "derive" }
+logix-type-derive = { version = "0.6.1", path = "derive" }
 logix-vfs = "0.7.0"
 owo-colors = { version = "4.0.0", features = ["alloc"] }
 smol_str = "0.2.1"
@@ -36,3 +36,6 @@ authors = [
   "Bjørn Ove Hay Andersen <bjrnove@gmail.com>",
   "Gigantos <gigantos@gigantos.net>",
 ]
+license = "MPL-2.0"
+edition = "2021"
+repository = "https://github.com/logix-tool/logix-type"

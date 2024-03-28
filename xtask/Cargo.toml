@@ -1,9 +1,9 @@
 [package]
 name = "xtask"
 version.workspace = true
-edition = "2021"
+edition.workspace = true
 authors.workspace = true
-license = "MPL-2.0"
+license.workspace = true
 
 [dependencies]
 logix-xtask = "0.1.1"
