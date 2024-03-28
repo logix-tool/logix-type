@@ -1,11 +1,8 @@
 [package]
 name = "xtask"
-version = "0.5.0"
+version.workspace = true
 edition = "2021"
-authors = [
-  "Bjørn Ove Hay Andersen <bjrnove@gmail.com>",
-  "Gigantos <gigantos@gigantos.net>",
-]
+authors.workspace = true
 license = "MPL-2.0"
 
 [dependencies]
