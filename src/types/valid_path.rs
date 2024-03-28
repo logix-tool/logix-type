@@ -14,7 +14,6 @@ use std::{
     path::{Path, PathBuf},
 };
 
-#[macro_export]
 macro_rules! impl_path_type_traits {
     ($name:ident, $doc:literal) => {
         impl $name {
