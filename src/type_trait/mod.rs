@@ -29,16 +29,18 @@ impl<T> Value<T> {
 }
 
 pub enum LogixValueDescriptor {
+    /// A native type that can be specified by a literal
     Native,
+    /// Describes a tuple of various types
     Tuple {
         members: Vec<&'static LogixTypeDescriptor>,
     },
+    /// Describes the named members of a struct
     Struct {
         members: Vec<(&'static str, &'static LogixTypeDescriptor)>,
     },
-    Enum {
-        variants: Vec<LogixTypeDescriptor>,
-    },
+    /// Describes the variants of an enum
+    Enum { variants: Vec<LogixTypeDescriptor> },
 }
 
 pub struct LogixTypeDescriptor {

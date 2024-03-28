@@ -1,6 +1,6 @@
 use std::{borrow::Cow, fmt};
 
-use crate::error::TokenError;
+use crate::{error::TokenError, string::StrLit};
 
 mod comment;
 mod parse;
@@ -104,7 +104,7 @@ pub enum Delim {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Literal<'a> {
-    Str(StrTag, &'a str),
+    Str(StrLit<'a>),
     Num(&'a str),
 }
 
@@ -222,7 +222,7 @@ mod tests {
     #[test]
     fn print_str_token_type() {
         // NOTE(2023.10): I haven't found a way to print it in external tests so doing it directly
-        let token = Token::Literal(Literal::Str(StrTag::Raw, "aa"));
+        let token = Token::Literal(Literal::Str(StrLit::new(StrTag::Raw, "aa")));
         assert_eq!(token.token_type_name().to_string(), "string");
         {
             let mut s = String::new();

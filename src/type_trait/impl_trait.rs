@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use super::{
     Brace, Literal, LogixParser, LogixType, LogixTypeDescriptor, LogixValueDescriptor, LogixVfs,
-    Map, ParseError, Result, Str, StrTag, Token, Value, Wanted, Warn,
+    Map, ParseError, Result, Str, Token, Value, Wanted, Warn,
 };
 
 macro_rules! impl_for_str {
@@ -22,26 +22,10 @@ macro_rules! impl_for_str {
 
             fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<Self>> {
                 Ok(match p.next_token()? {
-                    (span, Token::Literal(Literal::Str(StrTag::Raw, value))) => Value {
-                        value: <$type>::from(value),
+                    (span, Token::Literal(Literal::Str(value))) => Value {
+                        value: <$type>::from(value.decode_str(&span)?),
                         span,
                     },
-                    (span, Token::Literal(Literal::Str(StrTag::Esc, value))) => {
-                        Value {
-                            value: crate::string::esc::decode_str(value)
-                                .map_err(|(off, len, error)| {
-                                    ParseError::StrEscError { span: span.with_off(off, len), error }
-                                })?
-                                .into(),
-                            span,
-                        }
-                    }
-                    (span, Token::Literal(Literal::Str(StrTag::Txt, value))) => {
-                        Value {
-                            value: crate::string::txt::decode_str(value).into(),
-                            span,
-                        }
-                    }
                     (span, Token::Action(name)) => crate::action::for_string_data(name, span, p)
                         .map(|Value { span, value }| Value { span, value: value.into() })?,
                     (span, token) => return Err(ParseError::UnexpectedToken {
@@ -74,17 +58,8 @@ impl LogixType for PathBuf {
 
     fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<Self>> {
         Ok(match p.next_token()? {
-            (span, Token::Literal(Literal::Str(StrTag::Raw, value))) => Value {
-                value: PathBuf::from(value),
-                span,
-            },
-            (span, Token::Literal(Literal::Str(StrTag::Esc, value))) => Value {
-                value: crate::string::esc::decode_str(value)
-                    .map_err(|(off, len, error)| ParseError::StrEscError {
-                        span: span.with_off(off, len),
-                        error,
-                    })?
-                    .into(),
+            (span, Token::Literal(Literal::Str(value))) => Value {
+                value: PathBuf::from(value.decode_str(&span)?.into_owned()),
                 span,
             },
             (span, token) => {

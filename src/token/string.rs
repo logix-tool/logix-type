@@ -1,6 +1,6 @@
 use bstr::ByteSlice;
 
-use crate::Str;
+use crate::{string::StrLit, Str};
 
 use super::{Literal, ParseRes, StrTag, StrTagSuffix, Token, TokenError};
 
@@ -30,7 +30,10 @@ pub fn parse_basic(buf: &[u8], start: usize) -> ParseRes {
         match buf[pos] {
             b'"' => {
                 return parse_utf8(start + 1, pos, &buf[start + 1..pos], |value| {
-                    ParseRes::new(start..pos + 1, Token::Literal(Literal::Str(tag, value)))
+                    ParseRes::new(
+                        start..pos + 1,
+                        Token::Literal(Literal::Str(StrLit::new(tag, value))),
+                    )
                 });
             }
             b'\\' => {
@@ -83,7 +86,12 @@ pub fn parse_tagged(buf: &[u8], start: usize) -> Option<ParseRes> {
     if let Some((value, _)) = buf[pos..].split_once_str(&suffix) {
         let end = pos + value.len() + suffix.len();
         return Some(parse_utf8(start + pos, end, value, |v| {
-            ParseRes::new_lines(buf, start..end, 0, Ok(Token::Literal(Literal::Str(tag, v))))
+            ParseRes::new_lines(
+                buf,
+                start..end,
+                0,
+                Ok(Token::Literal(Literal::Str(StrLit::new(tag, v)))),
+            )
         }));
     }
 

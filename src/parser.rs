@@ -214,6 +214,8 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
         self.loader.open_file(path)
     }
 
+    /// Forks the parser and calls the specified function, if the return value
+    /// is `Some(R)`, the parser is replaced by the fork.
     pub(crate) fn forked<R>(
         &mut self,
         f: impl FnOnce(&mut LogixParser<'_, '_, FS>) -> Result<Option<R>>,
@@ -241,7 +243,10 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
 mod tests {
     use logix_vfs::RelFs;
 
-    use crate::token::{Brace, Literal, StrTag};
+    use crate::{
+        string::StrLit,
+        token::{Brace, Literal, StrTag},
+    };
 
     use super::*;
 
@@ -279,7 +284,7 @@ mod tests {
             p.next_token()?,
             (
                 s(f, 15, 1, 15, 5),
-                Token::Literal(Literal::Str(StrTag::Raw, "!!!"))
+                Token::Literal(Literal::Str(StrLit::new(StrTag::Raw, "!!!")))
             )
         );
         assert_eq!(
