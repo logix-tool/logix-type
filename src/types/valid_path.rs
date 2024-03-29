@@ -11,6 +11,7 @@ use crate::{
 };
 use std::{
     borrow::Cow,
+    ffi::OsStr,
     fmt,
     path::{Path, PathBuf},
 };
@@ -88,6 +89,18 @@ macro_rules! impl_path_type_traits {
             }
         }
 
+        impl PartialEq<PathBuf> for $name {
+            fn eq(&self, rhs: &PathBuf) -> bool {
+                self.as_path() == rhs
+            }
+        }
+
+        impl<'a> PartialEq<&'a Path> for $name {
+            fn eq(&self, rhs: &&'a Path) -> bool {
+                self.as_path() == *rhs
+            }
+        }
+
         impl fmt::Debug for $name {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 fmt::Debug::fmt(&**self, f)
@@ -132,6 +145,23 @@ macro_rules! impl_path_type_traits {
             pub fn as_path(&self) -> &Path {
                 &self.path
             }
+
+            pub fn join(&self, path: impl AsRef<Path>) -> Result<Self, PathError> {
+                let path = path.as_ref();
+                if path.is_absolute() {
+                    Err(PathError::JoinAbsolute)
+                } else {
+                    Ok(Self { path: self.path.join(path) })
+                }
+            }
+
+            pub fn with_file_name(&self, name: impl AsRef<OsStr>) -> Self {
+                Self { path: self.path.with_file_name(name) }
+            }
+
+            pub fn with_extension(&self, ext: impl AsRef<OsStr>) -> Self {
+                Self { path: self.path.with_extension(ext) }
+            }
         }
 
         impl From<$name> for PathBuf {
@@ -167,6 +197,30 @@ impl ValidPath {
         | ValidPath::Rel(RelPath { path })
         | ValidPath::Name(NameOnlyPath { path })) = self;
         path
+    }
+
+    pub fn join(&self, path: impl AsRef<Path>) -> Result<Self, PathError> {
+        match self {
+            Self::Full(v) => v.join(path).map(Self::Full),
+            Self::Rel(v) => v.join(path).map(Self::Rel),
+            Self::Name(v) => v.join(path).map(Self::Name),
+        }
+    }
+
+    pub fn with_file_name(&self, name: impl AsRef<OsStr>) -> Self {
+        match self {
+            Self::Full(v) => Self::Full(v.with_file_name(name)),
+            Self::Rel(v) => Self::Rel(v.with_file_name(name)),
+            Self::Name(v) => Self::Name(v.with_file_name(name)),
+        }
+    }
+
+    pub fn with_extension(&self, ext: impl AsRef<OsStr>) -> Self {
+        match self {
+            Self::Full(v) => Self::Full(v.with_extension(ext)),
+            Self::Rel(v) => Self::Rel(v.with_extension(ext)),
+            Self::Name(v) => Self::Name(v.with_extension(ext)),
+        }
     }
 }
 

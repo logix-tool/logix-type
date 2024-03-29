@@ -73,6 +73,9 @@ pub enum PathError {
 
     #[error("expected file name or absolute path")]
     NotFullOrNameOnly,
+
+    #[error("expected relative path when joining")]
+    JoinAbsolute,
 }
 
 #[derive(Debug, PartialEq)]

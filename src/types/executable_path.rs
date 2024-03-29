@@ -66,6 +66,33 @@ impl ExecutablePath {
     pub fn which(&self, env: Option<&ExecutableEnv>) -> Option<FullPath> {
         env.unwrap_or(&ExecutableEnv::DEFAULT).which(self)
     }
+
+    pub fn join(&self, path: impl AsRef<Path>) -> Result<Self, PathError> {
+        Ok(Self {
+            loc: match &self.loc {
+                Location::Path(v) => v.join(path).map(Location::Path)?,
+                Location::Name(v) => v.join(path).map(Location::Name)?,
+            },
+        })
+    }
+
+    pub fn with_file_name(&self, name: impl AsRef<OsStr>) -> Self {
+        Self {
+            loc: match &self.loc {
+                Location::Path(v) => Location::Path(v.with_file_name(name)),
+                Location::Name(v) => Location::Name(v.with_file_name(name)),
+            },
+        }
+    }
+
+    pub fn with_extension(&self, ext: impl AsRef<OsStr>) -> Self {
+        Self {
+            loc: match &self.loc {
+                Location::Path(v) => Location::Path(v.with_extension(ext)),
+                Location::Name(v) => Location::Name(v.with_extension(ext)),
+            },
+        }
+    }
 }
 
 impl TryFrom<PathBuf> for ExecutablePath {

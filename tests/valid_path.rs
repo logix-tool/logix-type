@@ -1,4 +1,5 @@
 use logix_type::{
+    error::PathError,
     types::{ExecutableEnv, ExecutablePath, FullPath, NameOnlyPath, RelPath, ValidPath},
     LogixType,
 };
@@ -26,14 +27,34 @@ fn path_as_deref(v: &impl std::ops::Deref<Target = Path>) -> &Path {
     v
 }
 
+fn is_t<T>(v: T) -> T {
+    v
+}
+
 macro_rules! run_basic_tests {
     ($type:ident, $path:literal) => {
         let path = $type::try_from($path).unwrap();
         let want = Path::new($path);
 
+        assert_eq!(
+            $type::try_from(Cow::Borrowed(Path::new($path))).unwrap(),
+            want
+        );
+        assert_eq!($type::try_from(Cow::<str>::Borrowed($path)).unwrap(), want);
         assert_eq!(path_as_deref(&path), want);
         assert_eq!(path_as_ref(&path), want);
         assert_eq!(os_str_as_ref(&path), want.as_os_str());
+        assert_eq!(is_t::<$type>(path.join("more").unwrap()), want.join("more"));
+        assert_eq!(path.join("/more"), Err(PathError::JoinAbsolute));
+        assert_eq!(
+            is_t::<$type>(path.with_file_name("woop.txt")),
+            want.with_file_name("woop.txt")
+        );
+        assert_eq!(
+            is_t::<$type>(path.with_extension("lll")),
+            want.with_extension("lll")
+        );
+        assert_eq!(path.join("/more"), Err(PathError::JoinAbsolute));
         assert_eq!(format!("{path:?}"), format!("{want:?}"));
         assert_eq!(<$type as LogixType>::default_value(), None);
         assert_eq!(PathBuf::from(path).as_path(), want);
@@ -73,6 +94,11 @@ fn valid_path_basics_rel() {
 #[test]
 fn valid_path_basics_name_only() {
     run_basic_tests!(ValidPath, "world.txt");
+}
+
+#[test]
+fn pathbuf_basics() {
+    assert_eq!(PathBuf::default_value(), None);
 }
 
 #[test]
