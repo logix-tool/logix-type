@@ -47,6 +47,7 @@ impl fmt::Debug for CachedFile {
     }
 }
 
+/// Load a logix configuration
 #[derive(Debug)]
 pub struct LogixLoader<FS: LogixVfs> {
     fs: FS,
@@ -55,6 +56,7 @@ pub struct LogixLoader<FS: LogixVfs> {
 }
 
 impl<FS: LogixVfs> LogixLoader<FS> {
+    /// Returns a new loader with the files provided by `fs`
     pub fn new(fs: FS) -> Self {
         Self {
             fs,
@@ -96,6 +98,7 @@ impl<FS: LogixVfs> LogixLoader<FS> {
         }
     }
 
+    /// Load the file located at `path` inside `FS` and parse it as `T`
     pub fn load_file<T: LogixType>(&mut self, path: impl AsRef<Path>) -> Result<T, ParseError> {
         let file = self.open_file(path)?;
         let mut p = LogixParser::new(self, &file);

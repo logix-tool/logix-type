@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use crate::{
     error::{ParseError, Result},
     span::SourceSpan,
-    type_trait::StrTag,
+    token::StrTag,
 };
 
 mod esc;

@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use logix_type::{
     error::Result,
-    types::{Data, ExecutablePath, FullPath, NameOnlyPath, RelPath, ValidPath},
-    LogixLoader, LogixType, Map, Str,
+    types::{Data, ExecutablePath, FullPath, Map, NameOnlyPath, RelPath, ShortStr, ValidPath},
+    LogixLoader, LogixType,
 };
 use logix_vfs::{LogixVfs, RelFs};
 
@@ -29,7 +29,7 @@ struct Root {
     type_u32: u32,
     type_i64: i64,
     type_u64: u64,
-    type_str: Str,
+    type_str: ShortStr,
     type_string: String,
     type_path: PathBuf,
     type_enum: Map<Enum>,
@@ -61,7 +61,7 @@ struct Root {
 
 #[derive(logix_type::LogixType, PartialEq, Debug)]
 struct NamedNode {
-    s: Str,
+    s: ShortStr,
     v: i32,
 }
 
@@ -82,55 +82,55 @@ fn expected_root() -> Root {
         type_string: "Howdy, universe!".into(),
         type_path: "hello.txt".into(),
         type_enum: [
-            (Str::new("unit"), Enum::Unit),
-            (Str::new("unnamed"), Enum::Unnamed(10)),
-            (Str::new("named"), Enum::Named { v: 20 }),
+            (ShortStr::from("unit"), Enum::Unit),
+            (ShortStr::from("unnamed"), Enum::Unnamed(10)),
+            (ShortStr::from("named"), Enum::Named { v: 20 }),
         ].into(),
         type_unit: Unit,
         type_map_int: [
-            (Str::new("key1"), 8),
-            (Str::new("key2"), -12),
-            (Str::new("key3"), 0),
+            (ShortStr::from("key1"), 8),
+            (ShortStr::from("key2"), -12),
+            (ShortStr::from("key3"), 0),
         ].into(),
         type_map_str: [
-            (Str::new("key4"), "Hi, space!".to_string()),
-            (Str::new("key5"), "Yo, multiverse!".to_string()),
-            (Str::new("key6"), "Sup, dimension!".to_string()),
+            (ShortStr::from("key4"), "Hi, space!".to_string()),
+            (ShortStr::from("key5"), "Yo, multiverse!".to_string()),
+            (ShortStr::from("key6"), "Sup, dimension!".to_string()),
         ].into(),
         type_map_named_struct: [
             (
-                Str::new("key7"),
+                ShortStr::from("key7"),
                 NamedNode {
-                    s: Str::new("Ahoy, planet!"),
+                    s: ShortStr::from("Ahoy, planet!"),
                     v: 78,
                 },
             ),
             (
-                Str::new("key8"),
+                ShortStr::from("key8"),
                 NamedNode {
-                    s: Str::new("Namaste, cosmos!"),
+                    s: ShortStr::from("Namaste, cosmos!"),
                     v: -689,
                 },
             ),
             (
-                Str::new("key9"),
+                ShortStr::from("key9"),
                 NamedNode {
-                    s: Str::new("G'day, cluster!"),
+                    s: ShortStr::from("G'day, cluster!"),
                     v: 597,
                 },
             ),
         ].into(),
         type_map_unnamed_struct: [
             (
-                Str::new("key10"),
+                ShortStr::from("key10"),
                 UnnamedNode("Howdy-do, domain!".into(), 409),
             ),
             (
-                Str::new("key11"),
+                ShortStr::from("key11"),
                 UnnamedNode("Hi-ho, space-time!".into(), 632),
             ),
             (
-                Str::new("key12"),
+                ShortStr::from("key12"),
                 UnnamedNode("Bonjour, infinity!".into(), 2471),
             ),
         ].into(),
@@ -146,9 +146,9 @@ fn expected_root() -> Root {
         very_long_escape1: "it works".into(),
         very_long_escape2: "it \"################################## works".into(),
         tagged_strings: [
-            (Str::new("raw"), "this is \\n raw".to_owned()),
-            (Str::new("esc"), "this is \n esc".to_owned()),
-            (Str::new("txt"), "this is \\n txt".to_owned()),
+            (ShortStr::from("raw"), "this is \\n raw".to_owned()),
+            (ShortStr::from("esc"), "this is \n esc".to_owned()),
+            (ShortStr::from("txt"), "this is \\n txt".to_owned()),
         ].into(),
         included_string: "Hello, this is a plain text file\n".into(),
         data_by_path_str: Data::ByPath("text-file.txt".into()),

@@ -42,7 +42,7 @@ fn invalid_utf8_basic_string() {
 
 #[test]
 fn invalid_utf8_basic_str() {
-    invalid_utf8_basic::<Str>();
+    invalid_utf8_basic::<ShortStr>();
 }
 
 #[test]
@@ -92,7 +92,7 @@ fn invalid_utf8_txt_string() {
 
 #[test]
 fn invalid_utf8_txt_str() {
-    invalid_utf8_txt::<Str>();
+    invalid_utf8_txt::<ShortStr>();
 }
 
 #[test]

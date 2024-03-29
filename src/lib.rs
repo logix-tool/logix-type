@@ -7,22 +7,13 @@ mod loader;
 mod parser;
 mod span;
 mod string;
-mod token;
-mod type_trait;
+pub mod token;
+pub mod type_trait;
 pub mod types;
 
-pub use crate::loader::LogixLoader;
+pub use crate::{loader::LogixLoader, parser::LogixParser};
 pub use logix_type_derive::LogixType;
 pub use type_trait::LogixType;
-
-// Used by macros, no semver guaranties are made here
-#[doc(hidden)]
-pub mod __private {
-    pub use crate::type_trait::*;
-}
-
-pub type Map<V> = indexmap::IndexMap<Str, V>;
-pub type Str = smol_str::SmolStr;
 
 // NOTE(2023.10): This is a work-around to test that compilation works
 /// ```

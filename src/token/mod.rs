@@ -1,3 +1,5 @@
+//! The `Token` type and other relevant types returned by `LogixParser::next_token`
+
 use std::{borrow::Cow, fmt};
 
 use crate::{error::TokenError, string::StrLit};

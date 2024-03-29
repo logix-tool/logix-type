@@ -6,11 +6,11 @@ use crate::{
     span::SourceSpan,
     token::{parse_token, Brace, Delim, ParseRes, Token},
     type_trait::Value,
+    types::ShortStr,
     LogixType,
 };
 use bstr::ByteSlice;
 use logix_vfs::LogixVfs;
-use smol_str::SmolStr;
 
 #[derive(Clone)]
 struct ParseState {
@@ -21,6 +21,7 @@ struct ParseState {
     eof: bool,
 }
 
+/// The parser used by the `LogixType` trait
 pub struct LogixParser<'fs, 'f, FS: LogixVfs> {
     loader: &'fs mut LogixLoader<FS>,
     file: &'f CachedFile,
@@ -163,11 +164,11 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
         &mut self,
         while_parsing: &'static str,
         end_brace: Brace,
-    ) -> Result<Option<(Value<SmolStr>, Value<T>)>> {
+    ) -> Result<Option<(Value<ShortStr>, Value<T>)>> {
         match self.next_token()? {
             (span, Token::Ident(key)) => {
                 let key = Value {
-                    value: SmolStr::new(key),
+                    value: ShortStr::from(key),
                     span,
                 };
 

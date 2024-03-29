@@ -4,8 +4,8 @@ use crate::{
     error::{ParseError, PathError, Result, SourceSpan, Wanted},
     parser::LogixParser,
     string::StrLit,
-    token::Token,
-    type_trait::{Literal, LogixTypeDescriptor, LogixValueDescriptor, Value},
+    token::{Literal, Token},
+    type_trait::{LogixTypeDescriptor, LogixValueDescriptor, Value},
     types::{FullPath, NameOnlyPath, ValidPath},
     LogixType,
 };
@@ -22,6 +22,7 @@ enum Location {
     Name(NameOnlyPath),
 }
 
+/// The environment used when resolving executable paths
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct ExecutableEnv<'a> {
     pub path_env: Option<Cow<'a, OsStr>>,

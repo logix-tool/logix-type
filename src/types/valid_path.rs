@@ -10,6 +10,7 @@ use crate::{
     LogixType,
 };
 use std::{
+    borrow::Cow,
     fmt,
     path::{Path, PathBuf},
 };
@@ -19,7 +20,6 @@ macro_rules! impl_path_type_traits {
         impl $name {
             pub fn from_lit(lit: StrLit, span: &SourceSpan) -> Result<Self> {
                 lit.decode_str(span)?
-                    .into_owned()
                     .try_into()
                     .map_err(|error| ParseError::PathError {
                         span: span.clone(),
@@ -36,6 +36,14 @@ macro_rules! impl_path_type_traits {
             }
         }
 
+        impl<'a> TryFrom<Cow<'a, str>> for $name {
+            type Error = PathError;
+
+            fn try_from(v: Cow<'a, str>) -> Result<Self, PathError> {
+                v.into_owned().try_into()
+            }
+        }
+
         impl TryFrom<String> for $name {
             type Error = PathError;
 
@@ -49,6 +57,14 @@ macro_rules! impl_path_type_traits {
 
             fn try_from(v: &'a Path) -> Result<Self, PathError> {
                 v.to_path_buf().try_into()
+            }
+        }
+
+        impl<'a> TryFrom<Cow<'a, Path>> for $name {
+            type Error = PathError;
+
+            fn try_from(v: Cow<'a, Path>) -> Result<Self, PathError> {
+                v.into_owned().try_into()
             }
         }
 
@@ -211,3 +227,22 @@ pub struct NameOnlyPath {
 }
 
 impl_path_type_traits!(NameOnlyPath, "A file or directory name", (Name), NotName);
+
+impl LogixType for PathBuf {
+    fn descriptor() -> &'static LogixTypeDescriptor {
+        static RET: LogixTypeDescriptor = LogixTypeDescriptor {
+            name: "path",
+            doc: "a valid path",
+            value: LogixValueDescriptor::Native,
+        };
+        &RET
+    }
+
+    fn default_value() -> Option<Self> {
+        None
+    }
+
+    fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<Self>> {
+        Ok(ValidPath::logix_parse(p)?.map(|v| v.into()))
+    }
+}

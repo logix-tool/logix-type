@@ -1,4 +1,4 @@
-use crate::{Shared, TokenStream2};
+use crate::{Shared, TokenStream2, Types};
 use quote::quote;
 
 pub(crate) fn do_any(
@@ -18,7 +18,13 @@ pub(crate) fn do_unit(
         prefix,
         type_name_str,
         type_name,
-        cr,
+        types:
+            Types {
+                LogixValueDescriptor,
+                Value,
+                Token,
+                ..
+            },
         impl_gen: _,
     }: &Shared,
     skip_struct_ident: bool,
@@ -26,18 +32,18 @@ pub(crate) fn do_unit(
     let req_struct_ident = if skip_struct_ident {
         quote!()
     } else {
-        quote!(let type_name_span = p.req_token(#type_name_str, Token::Ident(#type_name_str))?;)
+        quote!(let type_name_span = p.req_token(#type_name_str, #Token::Ident(#type_name_str))?;)
     };
 
     (
         quote!(
-            #cr::LogixValueDescriptor::Struct {
+            #LogixValueDescriptor::Struct {
                 members: vec![],
             }
         ),
         quote!(
             #req_struct_ident
-            Ok(#cr::Value {
+            Ok(#Value {
                 value: #prefix #type_name,
                 span: type_name_span,
             })
@@ -50,7 +56,18 @@ pub(crate) fn do_named(
         prefix,
         type_name_str,
         type_name,
-        cr,
+        types:
+            Types {
+                LogixValueDescriptor,
+                LogixType,
+                ParseError,
+                Value,
+                Token,
+                Brace,
+                Delim,
+                Wanted,
+                ..
+            },
         impl_gen,
     }: &Shared,
     fields: syn::FieldsNamed,
@@ -67,29 +84,29 @@ pub(crate) fn do_named(
     let req_struct_ident = if skip_struct_ident {
         quote!()
     } else {
-        quote!(let type_name_span = p.req_token(#type_name_str, Token::Ident(#type_name_str))?;)
+        quote!(let type_name_span = p.req_token(#type_name_str, #Token::Ident(#type_name_str))?;)
     };
 
     for field in fields.named {
         let fname = field.ident.unwrap();
         let fname_str = fname.to_string();
         let ty = field.ty;
-        members_desc.push(quote!((#fname_str, <#ty as #cr::LogixType>::descriptor())));
+        members_desc.push(quote!((#fname_str, <#ty as #LogixType>::descriptor())));
         member_tmp_init.push(quote!(None));
         member_tmp_parse.push(quote!(
             if tmp.#fname.is_some() {
-                return Err(ParseError::DuplicateStructMember {
+                return Err(#ParseError::DuplicateStructMember {
                     span,
                     type_name: #type_name_str,
                     member: #fname_str,
                 });
             }
-            tmp.#fname = Some(<#ty as #cr::LogixType>::logix_parse(p)?.value)
+            tmp.#fname = Some(<#ty as #LogixType>::logix_parse(p)?.value)
         ));
         member_tmp_assign.push(quote!(
             tmp.#fname
-                .or_else(|| <#ty as #cr::LogixType>::default_value())
-                .ok_or_else(|| ParseError::MissingStructMember {
+                .or_else(|| <#ty as #LogixType>::default_value())
+                .ok_or_else(|| #ParseError::MissingStructMember {
                     span: curly_span.clone(),
                     type_name: #type_name_str,
                     member: #fname_str,
@@ -102,7 +119,7 @@ pub(crate) fn do_named(
 
     (
         quote!(
-            #cr::LogixValueDescriptor::Struct {
+            #LogixValueDescriptor::Struct {
                 members: vec![#(#members_desc,)*],
             }
         ),
@@ -116,31 +133,31 @@ pub(crate) fn do_named(
                     #(#member_names: #member_tmp_init,)*
                 };
 
-                let mut curly_span = p.req_token(#type_name_str, Token::Brace { start: true, brace: Brace::Curly })?;
-                p.req_token(#type_name_str, Token::Newline(false))?;
+                let mut curly_span = p.req_token(#type_name_str, #Token::Brace { start: true, brace: #Brace::Curly })?;
+                p.req_token(#type_name_str, #Token::Newline(false))?;
                 'parse_members: loop {
                     match p.next_token()? {
-                        #((span, Token::Ident(#member_str_names)) => {
-                            p.req_token(#type_name_str, Token::Delim(Delim::Colon))?;
+                        #((span, #Token::Ident(#member_str_names)) => {
+                            p.req_token(#type_name_str, #Token::Delim(#Delim::Colon))?;
                             #member_tmp_parse;
-                            p.req_token(#type_name_str, Token::Newline(false))?;
+                            p.req_token(#type_name_str, #Token::Newline(false))?;
                         })*
-                        (span, Token::Brace { start: false, brace: Brace::Curly }) => {
+                        (span, #Token::Brace { start: false, brace: #Brace::Curly }) => {
                             curly_span = span;
                             break 'parse_members;
                         }
-                        (span, token) => return Err(ParseError::UnexpectedToken {
+                        (span, token) => return Err(#ParseError::UnexpectedToken {
                             span,
                             while_parsing: #type_name_str,
-                            wanted: Wanted::Tokens(&[
-                                Token::Brace { start: false, brace: Brace::Curly },
-                                #(Token::Ident(#member_str_names),)*
+                            wanted: #Wanted::Tokens(&[
+                                #Token::Brace { start: false, brace: #Brace::Curly },
+                                #(#Token::Ident(#member_str_names),)*
                             ]),
                             got_token: token.token_type_name(),
                         }),
                     }
                 }
-                Ok(#cr::Value {
+                Ok(#Value {
                     value: #prefix #type_name {
                         #(#member_names: #member_tmp_assign,)*
                     },
@@ -156,7 +173,16 @@ pub(crate) fn do_unnamed(
         prefix,
         type_name_str,
         type_name,
-        cr,
+        types:
+            Types {
+                LogixValueDescriptor,
+                LogixType,
+                Value,
+                Token,
+                Brace,
+                Delim,
+                ..
+            },
         impl_gen: _,
     }: &Shared,
     fields: syn::FieldsUnnamed,
@@ -170,14 +196,14 @@ pub(crate) fn do_unnamed(
     let req_struct_ident = if skip_struct_ident {
         quote!()
     } else {
-        quote!(let type_name_span = p.req_token(#type_name_str, Token::Ident(#type_name_str))?;)
+        quote!(let type_name_span = p.req_token(#type_name_str, #Token::Ident(#type_name_str))?;)
     };
 
     for (i, field) in fields.unnamed.into_iter().enumerate() {
         let ty = field.ty;
         let fname_str = format!("#{i}");
-        members_desc.push(quote!(<#ty as #cr::LogixType>::descriptor()));
-        member_parse.push(quote!(<#ty as #cr::LogixType>::logix_parse(p)?.value));
+        members_desc.push(quote!(<#ty as #LogixType>::descriptor()));
+        member_parse.push(quote!(<#ty as #LogixType>::logix_parse(p)?.value));
         member_indices.push(i);
         member_str_names.push(fname_str);
     }
@@ -186,26 +212,26 @@ pub(crate) fn do_unnamed(
 
     (
         quote!(
-            #cr::LogixValueDescriptor::Tuple {
+            #LogixValueDescriptor::Tuple {
                 members: vec![#(#members_desc,)*],
             }
         ),
         quote!(
             #req_struct_ident
-            p.req_token(#type_name_str, Token::Brace { start: true, brace: Brace::Paren })?;
-            Ok(#cr::Value {
+            p.req_token(#type_name_str, #Token::Brace { start: true, brace: #Brace::Paren })?;
+            Ok(#Value {
                 value: #prefix #type_name (
                     #({
                         let value = #member_parse;
 
-                        p.req_token(#type_name_str, Token::Delim(Delim::Comma))?;
+                        p.req_token(#type_name_str, #Token::Delim(#Delim::Comma))?;
 
                         value
                     },)*
                     #({
                         let value = #last_member_parse;
 
-                        p.req_token(#type_name_str, Token::Brace { start: false, brace: Brace::Paren })?;
+                        p.req_token(#type_name_str, #Token::Brace { start: false, brace: #Brace::Paren })?;
 
                         value
                     },)*

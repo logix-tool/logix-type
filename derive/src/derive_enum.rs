@@ -1,4 +1,4 @@
-use crate::{Shared, TokenStream2};
+use crate::{Shared, TokenStream2, Types};
 use quote::quote;
 
 pub(crate) fn do_any(
@@ -6,7 +6,15 @@ pub(crate) fn do_any(
         prefix,
         type_name_str,
         type_name,
-        cr,
+        types:
+            types @ Types {
+                LogixTypeDescriptor,
+                LogixValueDescriptor,
+                Token,
+                Wanted,
+                ParseError,
+                ..
+            },
         impl_gen,
     }: &Shared,
     variants: impl IntoIterator<Item = syn::Variant>,
@@ -19,7 +27,7 @@ pub(crate) fn do_any(
         let variant_name = variant.ident;
         let shared = Shared {
             prefix: quote!(#prefix #type_name::),
-            cr: cr.clone(),
+            types: types.clone(),
             type_name_str: variant_name.to_string(),
             type_name: variant_name,
             impl_gen: impl_gen.clone(),
@@ -32,8 +40,8 @@ pub(crate) fn do_any(
 
     (
         quote!(
-            #cr::LogixValueDescriptor::Enum {
-                variants: vec![#(#cr::LogixTypeDescriptor {
+            #LogixValueDescriptor::Enum {
+                variants: vec![#(#LogixTypeDescriptor {
                     name: #variant_names_str,
                     doc: "",
                     value: #variants_desc
@@ -42,14 +50,14 @@ pub(crate) fn do_any(
         ),
         quote!(
             match p.next_token()? {
-                #((type_name_span, Token::Ident(#variant_names_str)) => {
+                #((type_name_span, #Token::Ident(#variant_names_str)) => {
                     #variant_parsers
                 })*
                 (span, token) => {
-                    Err(ParseError::UnexpectedToken {
+                    Err(#ParseError::UnexpectedToken {
                         span,
                         while_parsing: #type_name_str,
-                        wanted: Wanted::Tokens(&[#(Token::Ident(#variant_names_str),)*]),
+                        wanted: #Wanted::Tokens(&[#(#Token::Ident(#variant_names_str),)*]),
                         got_token: token.token_type_name(),
                     })
                 }

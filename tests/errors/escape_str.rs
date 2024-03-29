@@ -71,7 +71,7 @@ fn escape_hex_string() {
 
 #[test]
 fn escape_hex_str() {
-    escape_hex::<Str>();
+    escape_hex::<ShortStr>();
 }
 
 #[test]
@@ -171,7 +171,7 @@ fn escape_unicode_string() {
 
 #[test]
 fn escape_unicode_str() {
-    escape_unicode::<Str>();
+    escape_unicode::<ShortStr>();
 }
 
 #[test]
@@ -217,7 +217,7 @@ fn escape_char_string() {
 
 #[test]
 fn escape_char_str() {
-    escape_char::<Str>();
+    escape_char::<ShortStr>();
 }
 
 #[test]

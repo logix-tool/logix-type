@@ -4,9 +4,9 @@ use logix_type::{
     error::{
         EscStrError, IncludeError, ParseError, PathError, SourceSpan, TokenError, Wanted, Warn,
     },
-    types::{Data, ExecutablePath, FullPath, NameOnlyPath, RelPath, ValidPath},
-    LogixLoader, LogixType, Map, Str,
-    __private::{Brace, Delim, StrTag, StrTagSuffix, Token},
+    token::{Brace, Delim, StrTag, StrTagSuffix, Token},
+    types::{Data, ExecutablePath, FullPath, Map, NameOnlyPath, RelPath, ShortStr, ValidPath},
+    LogixLoader, LogixType,
 };
 use logix_vfs::RelFs;
 
@@ -484,7 +484,7 @@ fn duplicate_map_entry() {
         e,
         ParseError::Warning(Warn::DuplicateMapEntry {
             span: l.span("test.logix", 3, 2, 1),
-            key: Str::new("a"),
+            key: ShortStr::from("a"),
         })
     );
 

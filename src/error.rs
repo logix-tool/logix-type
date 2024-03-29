@@ -6,7 +6,7 @@ use thiserror::Error;
 
 use crate::{
     token::{StrTag, StrTagSuffix, Token},
-    Str,
+    types::ShortStr,
 };
 
 pub type Result<T, E = ParseError> = std::result::Result<T, E>;
@@ -20,7 +20,7 @@ pub enum TokenError {
     #[error("unexpected end of file, expected `*/`")]
     MissingCommentTerminator,
     #[error("unknown string tag `{0}`")]
-    UnknownStrTag(Str),
+    UnknownStrTag(ShortStr),
     #[error("unexpected end of the string, expected `\"`")]
     MissingStringTerminator,
     #[error("unexpected end of {tag} string, expected {suffix}")]
@@ -296,7 +296,7 @@ pub enum Warn {
     #[error(
         "Duplicate entry `{key}` while parsing `Map`, overwrites the previous entry in {span}"
     )]
-    DuplicateMapEntry { span: SourceSpan, key: Str },
+    DuplicateMapEntry { span: SourceSpan, key: ShortStr },
 }
 
 #[cfg(test)]

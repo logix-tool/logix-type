@@ -1,6 +1,6 @@
 use bstr::ByteSlice;
 
-use crate::{string::StrLit, Str};
+use crate::{string::StrLit, types::ShortStr};
 
 use super::{Literal, ParseRes, StrTag, StrTagSuffix, Token, TokenError};
 
@@ -69,7 +69,7 @@ pub fn parse_tagged(buf: &[u8], start: usize) -> Option<ParseRes> {
         tag
     } else {
         let end = buf[pos..].find_not_byteset(StrTag::VALID.0)? + pos;
-        let tag = Str::new(std::str::from_utf8(&buf[pos..end]).unwrap());
+        let tag = ShortStr::from(std::str::from_utf8(&buf[pos..end]).unwrap());
         match buf[end] {
             b'"' => {
                 return Some(ParseRes::new_res(
