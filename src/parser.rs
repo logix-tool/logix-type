@@ -244,10 +244,7 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
 mod tests {
     use logix_vfs::RelFs;
 
-    use crate::{
-        string::StrLit,
-        token::{Brace, Literal, StrTag},
-    };
+    use crate::token::{Brace, Literal, StrLit, StrTag};
 
     use super::*;
 

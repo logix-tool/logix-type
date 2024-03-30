@@ -1,3 +1,5 @@
+mod string;
+
 use std::{ops::Range, str::from_utf8};
 
 const IDENT1: ByteSet = ByteSet(concat!(
@@ -115,9 +117,9 @@ pub fn parse_token(buf: &[u8]) -> ParseRes {
                 Ok(Token::Newline(buf.len() == start + off)),
             )
         }
-        Some(b'"') => super::string::parse_basic(buf, start),
+        Some(b'"') => string::parse_basic(buf, start),
         Some(b'#') => {
-            if let Some(ret) = super::string::parse_tagged(buf, start) {
+            if let Some(ret) = string::parse_tagged(buf, start) {
                 ret
             } else {
                 ParseRes::new_res(start..start + 1, 0, Err(TokenError::UnexpectedChar('#')))

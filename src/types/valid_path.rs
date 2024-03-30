@@ -4,8 +4,7 @@ use logix_vfs::LogixVfs;
 use crate::{
     error::{ParseError, PathError, Result, SourceSpan, Wanted},
     parser::LogixParser,
-    string::StrLit,
-    token::{Literal, Token},
+    token::{Literal, StrLit, Token},
     type_trait::{LogixTypeDescriptor, LogixValueDescriptor, Value},
     LogixType,
 };

@@ -1,8 +1,12 @@
 use bstr::ByteSlice;
 
-use crate::{string::StrLit, types::ShortStr};
+use crate::{
+    error::TokenError,
+    token::{Literal, StrLit, StrTag, StrTagSuffix, Token},
+    types::ShortStr,
+};
 
-use super::{Literal, ParseRes, StrTag, StrTagSuffix, Token, TokenError};
+use super::ParseRes;
 
 fn parse_utf8<'a>(
     start: usize,

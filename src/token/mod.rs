@@ -2,12 +2,15 @@
 
 use std::{borrow::Cow, fmt};
 
-use crate::{error::TokenError, string::StrLit};
+use crate::error::TokenError;
 
 mod comment;
 mod parse;
 mod string;
-pub use parse::{parse_token, ParseRes};
+pub use self::{
+    parse::{parse_token, ParseRes},
+    string::StrLit,
+};
 
 struct ByteSet(&'static str);
 

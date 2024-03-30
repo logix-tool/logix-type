@@ -6,9 +6,6 @@ use crate::{
     token::StrTag,
 };
 
-mod esc;
-mod txt;
-
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct StrLit<'a> {
     tag: StrTag,
@@ -23,13 +20,15 @@ impl<'a> StrLit<'a> {
     pub fn decode_str(&self, span: &SourceSpan) -> Result<Cow<'a, str>> {
         match self.tag {
             StrTag::Raw => Ok(Cow::Borrowed(self.value)),
-            StrTag::Esc => crate::string::esc::decode_str(self.value)
-                .map(Cow::Owned)
-                .map_err(|(off, len, error)| ParseError::StrEscError {
-                    span: span.with_off(off, len),
-                    error,
-                }),
-            StrTag::Txt => Ok(Cow::Owned(crate::string::txt::decode_str(self.value))),
+            StrTag::Esc => {
+                super::esc::decode_str(self.value)
+                    .map(Cow::Owned)
+                    .map_err(|(off, len, error)| ParseError::StrEscError {
+                        span: span.with_off(off, len),
+                        error,
+                    })
+            }
+            StrTag::Txt => Ok(Cow::Owned(super::txt::decode_str(self.value))),
         }
     }
 }

@@ -6,7 +6,6 @@ pub mod error;
 mod loader;
 mod parser;
 mod span;
-mod string;
 pub mod token;
 pub mod type_trait;
 pub mod types;
