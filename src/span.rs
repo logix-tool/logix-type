@@ -6,11 +6,35 @@ use logix_vfs::LogixVfs;
 use crate::{loader::CachedFile, LogixLoader};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+enum SpanRange {
+    SingleLine {
+        line: usize,
+        col: Range<u16>,
+    },
+    MultiLine {
+        start_line: usize,
+        start_col: u16,
+        last_line: usize,
+        last_col: u16,
+        end_pos: usize,
+    },
+}
+impl SpanRange {
+    fn get_range_for_line(&self, cur_line: usize) -> Option<Range<usize>> {
+        match self {
+            Self::SingleLine { line, col } => {
+                (*line == cur_line).then(|| usize::from(col.start)..usize::from(col.end))
+            }
+            Self::MultiLine { .. } => todo!(),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SourceSpan {
     file: CachedFile,
     pos: usize,
-    line: usize,
-    col: Range<u16>,
+    range: SpanRange,
 }
 
 impl SourceSpan {
@@ -18,8 +42,7 @@ impl SourceSpan {
         Self {
             file: CachedFile::empty(),
             pos: 0,
-            line: 0,
-            col: 0..0,
+            range: SpanRange::SingleLine { line: 0, col: 0..0 },
         }
     }
     pub fn new_for_test(
@@ -48,8 +71,10 @@ impl SourceSpan {
         Self {
             file: file.clone(),
             pos,
-            line,
-            col: scol..ecol,
+            range: SpanRange::SingleLine {
+                line,
+                col: scol..ecol,
+            },
         }
     }
 
@@ -57,16 +82,39 @@ impl SourceSpan {
         self.file.path()
     }
 
+    /// The first line in this span
     pub fn line(&self) -> usize {
-        self.line
+        match self.range {
+            SpanRange::SingleLine { line, col: _ } => line,
+            SpanRange::MultiLine { start_line, .. } => start_line,
+        }
     }
 
+    /// The last line in this span
+    pub fn last_line(&self) -> usize {
+        match self.range {
+            SpanRange::SingleLine { line, col: _ } => line,
+            SpanRange::MultiLine { last_line, .. } => last_line,
+        }
+    }
+    /// The start column of the start line
     pub fn col(&self) -> usize {
-        self.col.start.into()
+        match self.range {
+            SpanRange::SingleLine {
+                line: _,
+                col: Range { start, end: _ },
+            } => start.into(),
+            SpanRange::MultiLine { start_col, .. } => start_col.into(),
+        }
     }
 
+    /// The value of this entire span
     pub fn value(&self) -> Cow<str> {
-        String::from_utf8_lossy(&self.file.data()[self.pos..self.pos + self.col.len()])
+        let end_pos = match &self.range {
+            SpanRange::SingleLine { line: _, col } => self.pos + col.len(),
+            &SpanRange::MultiLine { end_pos, .. } => end_pos,
+        };
+        String::from_utf8_lossy(&self.file.data()[self.pos..end_pos])
     }
 
     pub fn lines(
@@ -76,17 +124,11 @@ impl SourceSpan {
         self.file
             .lines()
             .enumerate()
-            .skip(self.line.saturating_sub(context + 1))
+            .skip(self.line().saturating_sub(context + 1))
             .map_while(move |(i, line)| {
                 let ln = i + 1;
-                if ln == self.line {
-                    Some((
-                        ln,
-                        Some(usize::from(self.col.start)..usize::from(self.col.end)),
-                        line.to_str_lossy(),
-                    ))
-                } else if ln <= self.line + context {
-                    Some((ln, None, line.to_str_lossy()))
+                if ln <= self.line() + context {
+                    Some((ln, self.range.get_range_for_line(ln), line.to_str_lossy()))
                 } else {
                     None
                 }
@@ -99,13 +141,21 @@ impl SourceSpan {
         Self {
             file: self.file.clone(),
             pos: self.pos + usize::from(off),
-            line: self.line,
-            col: self.col.start + off..self.col.start + off + len,
+            range: match self.range {
+                SpanRange::SingleLine {
+                    line,
+                    col: Range { start, end: _ },
+                } => SpanRange::SingleLine {
+                    line,
+                    col: start + off..start + off + len,
+                },
+                SpanRange::MultiLine { .. } => todo!(),
+            },
         }
     }
 
     pub fn calc_ln_width(&self, extra: usize) -> usize {
-        match self.line + extra {
+        match self.last_line() + extra {
             0..=999 => 3,
             1000..=9999 => 4,
             10000..=99999 => 5,
@@ -119,12 +169,48 @@ impl SourceSpan {
 
         let mut ret = self.clone();
 
-        if ret.line == other.line {
-            ret.pos = other.pos.min(ret.pos);
-            ret.col.start = other.col.start.min(ret.col.start);
-            ret.col.end = other.col.end.max(ret.col.end);
-        } else {
-            todo!()
+        match (&self.range, &other.range) {
+            (
+                SpanRange::SingleLine {
+                    line: sline,
+                    col: scol,
+                },
+                SpanRange::SingleLine {
+                    line: oline,
+                    col: ocol,
+                },
+            ) => match sline.cmp(oline) {
+                std::cmp::Ordering::Less => {
+                    ret.pos = self.pos;
+                    ret.range = SpanRange::MultiLine {
+                        start_line: *sline,
+                        start_col: scol.start,
+                        last_line: *oline,
+                        last_col: ocol.end,
+                        end_pos: other.pos + ocol.len(),
+                    };
+                }
+                std::cmp::Ordering::Equal => {
+                    ret.pos = self.pos.min(other.pos);
+                    ret.range = SpanRange::SingleLine {
+                        line: *sline,
+                        col: ocol.start.min(scol.start)..ocol.end.max(scol.end),
+                    };
+                }
+                std::cmp::Ordering::Greater => {
+                    ret.pos = self.pos;
+                    ret.range = SpanRange::MultiLine {
+                        start_line: *oline,
+                        start_col: ocol.start,
+                        last_line: *sline,
+                        last_col: scol.end,
+                        end_pos: self.pos + scol.len(),
+                    };
+                }
+            },
+            (SpanRange::SingleLine { .. }, SpanRange::MultiLine { .. }) => todo!(),
+            (SpanRange::MultiLine { .. }, SpanRange::SingleLine { .. }) => todo!(),
+            (SpanRange::MultiLine { .. }, SpanRange::MultiLine { .. }) => todo!(),
         }
 
         ret
@@ -151,8 +237,7 @@ impl SourceSpan {
         Self {
             file: file.clone(),
             pos,
-            line: ln,
-            col,
+            range: SpanRange::SingleLine { line: ln, col },
         }
     }
 }
@@ -163,8 +248,8 @@ impl fmt::Display for SourceSpan {
             f,
             "{}:{}:{}",
             self.file.path().display(),
-            self.line,
-            self.col.start
+            self.line(),
+            self.col()
         )
     }
 }
@@ -179,8 +264,10 @@ mod tests {
             SourceSpan {
                 file: CachedFile::from_slice("test.logix", b"hello world"),
                 pos: 6,
-                line: 1,
-                col: 6..11,
+                range: SpanRange::SingleLine {
+                    line: 1,
+                    col: 6..11
+                }
             }
             .value(),
             "world"

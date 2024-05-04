@@ -3,6 +3,7 @@
 #[macro_use]
 mod valid_path;
 
+mod array;
 mod data;
 mod executable_path;
 mod map;

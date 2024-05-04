@@ -87,4 +87,6 @@ Root {
   valid_path_name: "world.txt"
   executable1: "logix"
   executable2: "/usr/bin/logix"
+  dyn_array: [1, 1, 2, 2, 3, 3]
+  fixed_array: [1, 2, 3]
 }

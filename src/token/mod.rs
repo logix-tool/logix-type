@@ -107,18 +107,18 @@ pub enum Delim {
     Comma,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Literal<'a> {
     Str(StrLit<'a>),
     Num(&'a str),
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Action {
     Include,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Token<'a> {
     Ident(&'a str),
     Action(Action),

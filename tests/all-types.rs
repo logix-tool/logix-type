@@ -57,6 +57,8 @@ struct Root {
     valid_path_name: ValidPath,
     executable1: ExecutablePath,
     executable2: ExecutablePath,
+    dyn_array: Vec<u32>,
+    fixed_array: [u32; 3],
 }
 
 #[derive(logix_type::LogixType, PartialEq, Debug)]
@@ -164,6 +166,8 @@ fn expected_root() -> Root {
         valid_path_name: "world.txt".try_into().unwrap(),
         executable1: "logix".try_into().unwrap(),
         executable2: "/usr/bin/logix".try_into().unwrap(),
+        dyn_array: vec![1, 1, 2, 2, 3, 3],
+        fixed_array: [1, 2, 3],
     }
 }
 
@@ -223,6 +227,8 @@ fn load_and_compare(loader: &mut LogixLoader<impl LogixVfs>) -> Result<()> {
         valid_path_name,
         executable1,
         executable2,
+        dyn_array,
+        fixed_array,
     } = loader.load_file("all-types.logix")?;
     assert_eq!(type_i8, expected.type_i8);
     assert_eq!(type_u8, expected.type_u8);
@@ -281,6 +287,9 @@ fn load_and_compare(loader: &mut LogixLoader<impl LogixVfs>) -> Result<()> {
 
     assert_eq!(executable1, expected.executable1);
     assert_eq!(executable2, expected.executable2);
+
+    assert_eq!(dyn_array, expected.dyn_array);
+    assert_eq!(fixed_array, expected.fixed_array);
 
     Ok(())
 }

@@ -90,6 +90,11 @@ pub enum Wanted {
     ValidPath,
     LitNum(&'static str),
     Ident,
+    ItemOrEnd,
+    ItemDelim,
+    Item,
+    /// An error occured while parsing a delimited list of items, but not able to determine what was expected
+    ItemUnknown,
 }
 
 impl fmt::Display for Wanted {
@@ -124,6 +129,10 @@ impl fmt::Display for Wanted {
             Self::ValidPath => write!(f, "path"),
             Self::LitNum(name) => write!(f, "{name}"),
             Self::Ident => write!(f, "identifier"),
+            Self::ItemOrEnd => write!(f, "item or end"),
+            Self::ItemDelim => write!(f, "delimiter"),
+            Self::Item => write!(f, "item"),
+            Self::ItemUnknown => write!(f, "item, delimiter or end"),
         }
     }
 }
@@ -324,7 +333,7 @@ mod tests {
                     key: "test".into()
                 }
             ),
-            "DuplicateMapEntry { span: SourceSpan { file: CachedFile(\"\"), pos: 0, line: 0, col: 0..0 }, key: \"test\" }",
+            "DuplicateMapEntry { span: SourceSpan { file: CachedFile(\"\"), pos: 0, range: SingleLine { line: 0, col: 0..0 } }, key: \"test\" }",
         );
         assert_eq!(
             ParseError::FsError(logix_vfs::Error::NotFound {

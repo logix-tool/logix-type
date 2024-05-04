@@ -6,6 +6,7 @@ use crate::{error::Result, parser::LogixParser, span::SourceSpan};
 pub use logix_vfs::LogixVfs;
 
 /// Represents a value and the location in the config file
+#[derive(Debug, PartialEq)]
 pub struct Value<T> {
     pub value: T,
     pub span: SourceSpan,

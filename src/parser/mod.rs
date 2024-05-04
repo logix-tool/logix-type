@@ -12,6 +12,9 @@ use crate::{
 use bstr::ByteSlice;
 use logix_vfs::LogixVfs;
 
+mod delimited;
+pub use delimited::ParseDelimited;
+
 #[derive(Clone)]
 struct ParseState {
     cur_pos: usize,
@@ -48,7 +51,11 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
         Err(ParseError::Warning(warning))
     }
 
-    fn cur_span(&self, range: Range<usize>) -> SourceSpan {
+    pub fn cur_span(&self) -> SourceSpan {
+        self.calc_span(0..0)
+    }
+
+    fn calc_span(&self, range: Range<usize>) -> SourceSpan {
         SourceSpan::new(
             self.file,
             self.state.cur_pos + range.start,
@@ -58,9 +65,18 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
         )
     }
 
-    pub fn next_token(&mut self) -> Result<(SourceSpan, Token)> {
+    pub fn peek_token(&mut self) -> Result<(SourceSpan, Token<'f>)> {
+        let mut fork = LogixParser {
+            loader: self.loader,
+            file: self.file,
+            state: self.state.clone(),
+        };
+        fork.next_token()
+    }
+
+    pub fn next_token(&mut self) -> Result<(SourceSpan, Token<'f>)> {
         if self.state.eof {
-            return Ok((self.cur_span(0..0), Token::Newline(true)));
+            return Ok((self.calc_span(0..0), Token::Newline(true)));
         }
 
         'outer: loop {
@@ -75,7 +91,7 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
                         lines,
                         token,
                     } = parse_token(buf);
-                    let span = self.cur_span(range);
+                    let span = self.calc_span(range);
 
                     self.state.cur_pos += len;
                     if lines > 0 {
@@ -123,14 +139,16 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
     }
 
     // TODO(2023.10): Switch to using this where possible
+    /// Create a new parser that must start with the given brace, and once it returns, must
+    /// point to the ending brace
     pub fn req_wrapped<R>(
         &mut self,
         while_parsing: &'static str,
         brace: Brace,
-        f: impl FnOnce(&mut Self) -> Result<Value<R>>,
+        f: impl FnOnce(&mut LogixParser<FS>) -> Result<R>,
     ) -> Result<Value<R>> {
         let start = self.req_token(while_parsing, Token::Brace { start: true, brace })?;
-        let ret = f(self)?;
+        let value = f(self)?;
         let end = self.req_token(
             while_parsing,
             Token::Brace {
@@ -138,7 +156,15 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
                 brace,
             },
         )?;
-        Ok(ret.join_with_span(start).join_with_span(end))
+        Ok(Value { value, span: start }.join_with_span(end))
+    }
+
+    /// Parse a list of items that may be delimited by comma, newline or both
+    pub fn parse_delimited<'p, R: LogixType>(
+        &'p mut self,
+        while_parsing: &'static str,
+    ) -> ParseDelimited<'p, 'fs, 'f, FS, R> {
+        ParseDelimited::new(self, while_parsing)
     }
 
     pub fn req_token(
@@ -219,7 +245,7 @@ impl<'fs, 'f, FS: LogixVfs> LogixParser<'fs, 'f, FS> {
     /// is `Some(R)`, the parser is replaced by the fork.
     pub(crate) fn forked<R>(
         &mut self,
-        f: impl FnOnce(&mut LogixParser<'_, '_, FS>) -> Result<Option<R>>,
+        f: impl FnOnce(&mut LogixParser<'_, 'f, FS>) -> Result<Option<R>>,
     ) -> Result<Option<R>> {
         let mut fork = LogixParser {
             loader: self.loader,
@@ -248,57 +274,77 @@ mod tests {
 
     use super::*;
 
-    fn s(file: &CachedFile, pos: usize, ln: usize, start: usize, len: usize) -> SourceSpan {
-        SourceSpan::new(file, pos, ln, start, len)
+    pub(super) struct Tester<'f> {
+        f: &'f CachedFile,
+    }
+
+    impl<'f> Tester<'f> {
+        fn span(&self, pos: usize, ln: usize, start: usize, len: usize) -> SourceSpan {
+            SourceSpan::new(self.f, pos, ln, start, len)
+        }
+    }
+
+    pub(super) fn run_test<R>(
+        src: &str,
+        test_clb: impl FnOnce(&mut LogixParser<RelFs>, &Tester) -> R,
+    ) -> R {
+        let root = tempfile::tempdir().unwrap();
+        std::fs::write(root.path().join("test.logix"), src).unwrap();
+
+        let mut loader = LogixLoader::new(RelFs::new(root.path()));
+        let f = loader.open_file("test.logix").unwrap();
+
+        test_clb(&mut LogixParser::new(&mut loader, &f), &Tester { f: &f })
     }
 
     #[test]
     fn basics() -> Result<()> {
-        let root = tempfile::tempdir().unwrap();
-        std::fs::write(root.path().join("test.logix"), b"Hello { world: \"!!!\" }").unwrap();
+        run_test("Hello { world: \"!!!\" }", |p, t| -> Result<()> {
+            assert_eq!(p.next_token()?, (t.span(0, 1, 0, 5), Token::Ident("Hello")));
+            assert_eq!(
+                p.next_token()?,
+                (
+                    t.span(6, 1, 6, 1),
+                    Token::Brace {
+                        start: true,
+                        brace: Brace::Curly
+                    }
+                )
+            );
+            assert_eq!(p.next_token()?, (t.span(8, 1, 8, 5), Token::Ident("world")));
+            assert_eq!(
+                p.next_token()?,
+                (t.span(13, 1, 13, 1), Token::Delim(Delim::Colon))
+            );
+            assert_eq!(
+                p.next_token()?,
+                (
+                    t.span(15, 1, 15, 5),
+                    Token::Literal(Literal::Str(StrLit::new(StrTag::Raw, "!!!")))
+                )
+            );
+            assert_eq!(
+                p.next_token()?,
+                (
+                    t.span(21, 1, 21, 1),
+                    Token::Brace {
+                        start: false,
+                        brace: Brace::Curly
+                    }
+                )
+            );
 
-        let mut loader = LogixLoader::new(RelFs::new(root.path()));
-        let f = loader.open_file("test.logix")?;
-        let f = &f;
-        let mut p = LogixParser::new(&mut loader, f);
+            assert_eq!(
+                p.next_token()?,
+                (t.span(22, 1, 22, 0), Token::Newline(true))
+            );
 
-        assert_eq!(p.next_token()?, (s(f, 0, 1, 0, 5), Token::Ident("Hello")));
-        assert_eq!(
-            p.next_token()?,
-            (
-                s(f, 6, 1, 6, 1),
-                Token::Brace {
-                    start: true,
-                    brace: Brace::Curly
-                }
-            )
-        );
-        assert_eq!(p.next_token()?, (s(f, 8, 1, 8, 5), Token::Ident("world")));
-        assert_eq!(
-            p.next_token()?,
-            (s(f, 13, 1, 13, 1), Token::Delim(Delim::Colon))
-        );
-        assert_eq!(
-            p.next_token()?,
-            (
-                s(f, 15, 1, 15, 5),
-                Token::Literal(Literal::Str(StrLit::new(StrTag::Raw, "!!!")))
-            )
-        );
-        assert_eq!(
-            p.next_token()?,
-            (
-                s(f, 21, 1, 21, 1),
-                Token::Brace {
-                    start: false,
-                    brace: Brace::Curly
-                }
-            )
-        );
-
-        assert_eq!(p.next_token()?, (s(f, 22, 1, 22, 0), Token::Newline(true)));
-
-        assert_eq!(p.next_token()?, (s(f, 22, 1, 22, 0), Token::Newline(true))); // A second time to trigger additional code
-        Ok(())
+            assert_eq!(
+                p.next_token()?,
+                (t.span(22, 1, 22, 0), Token::Newline(true))
+            );
+            // A second time to trigger additional code
+            Ok(())
+        })
     }
 }

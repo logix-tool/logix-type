@@ -7,43 +7,52 @@ use logix_vfs::LogixVfs;
 use crate::{error::ParseError, parser::LogixParser, token::Token, type_trait::LogixType};
 
 #[derive(Clone, PartialEq, Eq)]
-pub(crate) struct CachedFile {
+struct InnerCachedFile {
     path: Arc<Path>,
     data: Arc<[u8]>,
+}
+
+#[derive(Clone, PartialEq, Eq)]
+pub(crate) struct CachedFile {
+    inner: Box<InnerCachedFile>,
 }
 
 impl CachedFile {
     pub(crate) fn empty() -> CachedFile {
         Self {
-            path: Arc::from(Path::new("")),
-            data: Arc::from(b"".as_slice()),
+            inner: Box::new(InnerCachedFile {
+                path: Arc::from(Path::new("")),
+                data: Arc::from(b"".as_slice()),
+            }),
         }
     }
 
     #[cfg(test)]
     pub(crate) fn from_slice(path: impl AsRef<Path>, data: &[u8]) -> CachedFile {
         Self {
-            path: Arc::from(Path::new(path.as_ref())),
-            data: Arc::from(data),
+            inner: Box::new(InnerCachedFile {
+                path: Arc::from(Path::new(path.as_ref())),
+                data: Arc::from(data),
+            }),
         }
     }
 
     pub fn path(&self) -> &Path {
-        &self.path
+        &self.inner.path
     }
 
     pub fn lines(&self) -> bstr::Lines {
-        self.data.lines()
+        self.inner.data.lines()
     }
 
     pub fn data(&self) -> &[u8] {
-        &self.data
+        &self.inner.data
     }
 }
 
 impl fmt::Debug for CachedFile {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_tuple("CachedFile").field(&self.path).finish()
+        f.debug_tuple("CachedFile").field(&self.inner.path).finish()
     }
 }
 
@@ -69,8 +78,10 @@ impl<FS: LogixVfs> LogixLoader<FS> {
         let (key, value) = self.files.get_key_value(path.as_ref())?;
 
         Some(CachedFile {
-            path: key.clone(),
-            data: value.clone(),
+            inner: Box::new(InnerCachedFile {
+                path: key.clone(),
+                data: value.clone(),
+            }),
         })
     }
 
@@ -89,11 +100,15 @@ impl<FS: LogixVfs> LogixLoader<FS> {
                 r.read_to_end(&mut self.tmp)
                     .map_err(|e| logix_vfs::Error::from_io(entry.key().to_path_buf(), e))?;
                 let data = entry.insert(Arc::from(self.tmp.as_slice())).clone();
-                Ok(CachedFile { path, data })
+                Ok(CachedFile {
+                    inner: Box::new(InnerCachedFile { path, data }),
+                })
             }
             indexmap::map::Entry::Occupied(entry) => Ok(CachedFile {
-                path: entry.key().clone(),
-                data: entry.get().clone(),
+                inner: Box::new(InnerCachedFile {
+                    path: entry.key().clone(),
+                    data: entry.get().clone(),
+                }),
             }),
         }
     }
@@ -129,8 +144,10 @@ mod tests {
         format!(
             "{:?}",
             CachedFile {
-                path: Arc::from(Path::new("a")),
-                data: Arc::from(b"".as_slice()),
+                inner: Box::new(InnerCachedFile {
+                    path: Arc::from(Path::new("a")),
+                    data: Arc::from(b"".as_slice()),
+                })
             }
         );
 

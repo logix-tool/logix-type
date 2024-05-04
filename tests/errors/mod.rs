@@ -2,6 +2,7 @@
 
 use super::*;
 
+mod array;
 mod comments;
 mod escape_str;
 mod fs_issues;

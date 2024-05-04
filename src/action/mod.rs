@@ -19,14 +19,14 @@ pub(crate) fn for_include<FS: LogixVfs>(
     let path = p
         .req_wrapped("@include", Brace::Paren, PathBuf::logix_parse)
         .map(|v| v.join_with_span(span))?;
-    let file = p
-        .open_file(&path.value)
-        .map_err(|error| ParseError::IncludeError {
+    let file = p.open_file(&path.value.value).map_err(|error| {
+        dbg!(ParseError::IncludeError {
             span: path.span.clone(),
             while_parsing: "string",
             error: IncludeError::Open(error),
-        })?;
-    Ok(path.map(|p| (p, file)))
+        })
+    })?;
+    Ok(path.map(|p| (p.value, file)))
 }
 
 pub fn for_string_data<FS: LogixVfs>(
