@@ -12,8 +12,8 @@ categories = ["parsing", "config", "parser-implementations"]
 [dependencies]
 bstr = "1.9.1"
 indexmap = "2.2.6"
-logix-type-derive = { version = "0.9.0", path = "derive" }
-logix-vfs = "0.7.0"
+logix-type-derive = { version = "0.10.0", path = "derive" }
+logix-vfs = "0.8.0"
 owo-colors = { version = "4.0.0", features = ["alloc"] }
 smol_str = "0.2.1"
 textwrap = "0.16.1"
@@ -31,11 +31,10 @@ members = [
 ]
 
 [workspace.package]
-version = "0.9.0"
+version = "0.10.0"
 authors = [
-  "Bjørn Ove Hay Andersen <bjrnove@gmail.com>",
   "Gigantos <gigantos@gigantos.net>",
 ]
-license = "MPL-2.0"
+license = "MIT OR Apache-2.0"
 edition = "2021"
 repository = "https://github.com/logix-tool/logix-type"
