@@ -12,8 +12,8 @@ categories = ["parsing", "config", "parser-implementations"]
 [dependencies]
 bstr = "1.9.1"
 indexmap = "2.2.6"
-logix-type-derive = { version = "0.10.0", path = "derive" }
-logix-vfs = "0.8.0"
+logix-type-derive = { version = "0.11.0", path = "derive" }
+logix-vfs = "0.9.0"
 owo-colors = { version = "4.0.0", features = ["alloc"] }
 smol_str = "0.2.1"
 textwrap = "0.16.1"
@@ -31,7 +31,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.10.1"
+version = "0.11.0"
 authors = [
   "Gigantos <gigantos@gigantos.net>",
 ]

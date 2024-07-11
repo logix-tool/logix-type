@@ -15,6 +15,7 @@ struct FailFs {
 
 impl LogixVfs for FailFs {
     type RoFile = FailFile;
+    type DirEntry = PathBuf;
     type ReadDir = FailReadDir;
 
     fn canonicalize_path(
