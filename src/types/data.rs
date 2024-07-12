@@ -10,7 +10,7 @@ use crate::{
     LogixType,
 };
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Data<T> {
     ByPath(PathBuf),
     Inline(T),

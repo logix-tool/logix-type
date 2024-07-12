@@ -14,7 +14,7 @@ pub use self::{
 
 struct ByteSet(&'static str);
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
 pub enum StrTag {
     /// The string can be used as is, no pre-processing needed
     Raw,
@@ -54,7 +54,7 @@ impl fmt::Display for StrTag {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
 pub struct StrTagSuffix(Cow<'static, str>);
 
 impl StrTagSuffix {
@@ -89,7 +89,7 @@ impl fmt::Display for StrTagSuffix {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
 pub enum Brace {
     /// Curly braces `{}`
     Curly,
@@ -101,24 +101,24 @@ pub enum Brace {
     Angle,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
 pub enum Delim {
     Colon,
     Comma,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
 pub enum Literal<'a> {
     Str(StrLit<'a>),
     Num(&'a str),
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
 pub enum Action {
     Include,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
 pub enum Token<'a> {
     Ident(&'a str),
     Action(Action),

@@ -6,7 +6,7 @@ use crate::{
     token::StrTag,
 };
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
 pub struct StrLit<'a> {
     tag: StrTag,
     value: &'a str,

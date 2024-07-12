@@ -6,13 +6,13 @@ use logix_vfs::LogixVfs;
 
 use crate::{error::ParseError, parser::LogixParser, token::Token, type_trait::LogixType};
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct InnerCachedFile {
     path: Arc<Path>,
     data: Arc<[u8]>,
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) struct CachedFile {
     inner: Box<InnerCachedFile>,
 }

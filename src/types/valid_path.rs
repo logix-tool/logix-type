@@ -183,7 +183,7 @@ macro_rules! impl_path_type_traits {
 }
 
 /// Represents a validated full path
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ValidPath {
     Full(FullPath),
     Rel(RelPath),
@@ -258,7 +258,7 @@ impl TryFrom<PathBuf> for ValidPath {
 impl_path_type_traits!(ValidPath, "A valid path");
 
 /// Represents a validated full path
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FullPath {
     path: PathBuf,
 }
@@ -266,7 +266,7 @@ pub struct FullPath {
 impl_path_type_traits!(FullPath, "A full path", (Full), NotAbsolute);
 
 /// Represents a validated relative path
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RelPath {
     path: PathBuf,
 }
@@ -274,7 +274,7 @@ pub struct RelPath {
 impl_path_type_traits!(RelPath, "A relative path", (Rel, Name), NotRelative);
 
 /// Represents a validated file or directory name without any path components
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NameOnlyPath {
     path: PathBuf,
 }

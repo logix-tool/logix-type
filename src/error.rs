@@ -11,7 +11,7 @@ use crate::{
 
 pub type Result<T, E = ParseError> = std::result::Result<T, E>;
 
-#[derive(Error, PartialEq, Debug)]
+#[derive(Error, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum TokenError {
     #[error("invalid utf-8 sequence")]
     LitStrNotUtf8,
@@ -27,7 +27,7 @@ pub enum TokenError {
     MissingTaggedStringTerminator { tag: StrTag, suffix: StrTagSuffix },
 }
 
-#[derive(Error, PartialEq, Debug)]
+#[derive(Error, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum EscStrError {
     #[error("got truncated hex escape code")]
     TruncatedHex,
@@ -45,7 +45,7 @@ pub enum EscStrError {
     InvalidEscapeChar(char),
 }
 
-#[derive(Error, PartialEq, Debug)]
+#[derive(Error, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum IncludeError {
     #[error("invalid utf-8 sequence")]
     NotUtf8,
@@ -54,7 +54,7 @@ pub enum IncludeError {
     Open(logix_vfs::Error),
 }
 
-#[derive(Error, PartialEq, Debug, Clone, Copy)]
+#[derive(Error, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Clone, Copy)]
 pub enum PathError {
     #[error("expected an absolute path")]
     NotAbsolute,
@@ -78,7 +78,7 @@ pub enum PathError {
     JoinAbsolute,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
 pub enum Wanted {
     Token(Token<'static>),
     Tokens(&'static [Token<'static>]),
@@ -137,7 +137,7 @@ impl fmt::Display for Wanted {
     }
 }
 
-#[derive(Error, PartialEq)]
+#[derive(Error, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ParseError {
     #[error(transparent)]
     FsError(#[from] logix_vfs::Error),
@@ -303,7 +303,7 @@ fn write_error(
     Ok(())
 }
 
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
 pub enum Warn {
     #[error(
         "Duplicate entry `{key}` while parsing `Map`, overwrites the previous entry in {span}"

@@ -6,7 +6,7 @@ use crate::{error::Result, parser::LogixParser, span::SourceSpan};
 pub use logix_vfs::LogixVfs;
 
 /// Represents a value and the location in the config file
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Value<T> {
     pub value: T,
     pub span: SourceSpan,
@@ -27,6 +27,7 @@ impl<T> Value<T> {
 }
 
 /// Describes a type
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
 pub enum LogixValueDescriptor {
     /// A native type that can be specified by a literal
     Native,
@@ -43,6 +44,7 @@ pub enum LogixValueDescriptor {
 }
 
 /// Describes a type in the logix config file
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
 pub struct LogixTypeDescriptor {
     /// Name of the type
     pub name: &'static str,

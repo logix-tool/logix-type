@@ -15,14 +15,14 @@ use std::{
     path::{Path, PathBuf},
 };
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 enum Location {
     Path(FullPath),
     Name(NameOnlyPath),
 }
 
 /// The environment used when resolving executable paths
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ExecutableEnv<'a> {
     pub path_env: Option<Cow<'a, OsStr>>,
 }
@@ -49,7 +49,7 @@ impl<'a> ExecutableEnv<'a> {
 /// A path to an executable. This is either a full path, or a filename. If it is a
 /// relative path it will fail to avoid issues. For example, imagine what happens
 /// if EDITOR is set to a relative path.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ExecutablePath {
     loc: Location,
 }

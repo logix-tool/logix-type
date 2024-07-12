@@ -1,15 +1,34 @@
-use std::{borrow::Cow, fmt, ops::Range, path::Path};
+use std::{borrow::Cow, fmt, path::Path};
 
 use bstr::ByteSlice;
 use logix_vfs::LogixVfs;
 
 use crate::{loader::CachedFile, LogixLoader};
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
+struct Range {
+    start: u16,
+    end: u16,
+}
+
+impl Range {
+    fn len(&self) -> usize {
+        usize::from(self.end - self.start)
+    }
+}
+
+impl fmt::Debug for Range {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let range: std::ops::Range<u16> = self.start..self.end;
+        fmt::Debug::fmt(&range, f)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
 enum SpanRange {
     SingleLine {
         line: usize,
-        col: Range<u16>,
+        col: Range,
     },
     MultiLine {
         start_line: usize,
@@ -19,8 +38,9 @@ enum SpanRange {
         end_pos: usize,
     },
 }
+
 impl SpanRange {
-    fn get_range_for_line(&self, cur_line: usize) -> Option<Range<usize>> {
+    fn get_range_for_line(&self, cur_line: usize) -> Option<std::ops::Range<usize>> {
         match self {
             Self::SingleLine { line, col } => {
                 (*line == cur_line).then(|| usize::from(col.start)..usize::from(col.end))
@@ -30,7 +50,7 @@ impl SpanRange {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
 pub struct SourceSpan {
     file: CachedFile,
     pos: usize,
@@ -42,7 +62,10 @@ impl SourceSpan {
         Self {
             file: CachedFile::empty(),
             pos: 0,
-            range: SpanRange::SingleLine { line: 0, col: 0..0 },
+            range: SpanRange::SingleLine {
+                line: 0,
+                col: Range { start: 0, end: 0 },
+            },
         }
     }
     pub fn new_for_test(
@@ -73,7 +96,10 @@ impl SourceSpan {
             pos,
             range: SpanRange::SingleLine {
                 line,
-                col: scol..ecol,
+                col: Range {
+                    start: scol,
+                    end: ecol,
+                },
             },
         }
     }
@@ -120,7 +146,7 @@ impl SourceSpan {
     pub fn lines(
         &self,
         context: usize,
-    ) -> impl Iterator<Item = (usize, Option<Range<usize>>, Cow<str>)> {
+    ) -> impl Iterator<Item = (usize, Option<std::ops::Range<usize>>, Cow<str>)> {
         self.file
             .lines()
             .enumerate()
@@ -147,7 +173,10 @@ impl SourceSpan {
                     col: Range { start, end: _ },
                 } => SpanRange::SingleLine {
                     line,
-                    col: start + off..start + off + len,
+                    col: Range {
+                        start: start + off,
+                        end: start + off + len,
+                    },
                 },
                 SpanRange::MultiLine { .. } => todo!(),
             },
@@ -194,7 +223,10 @@ impl SourceSpan {
                     ret.pos = self.pos.min(other.pos);
                     ret.range = SpanRange::SingleLine {
                         line: *sline,
-                        col: ocol.start.min(scol.start)..ocol.end.max(scol.end),
+                        col: Range {
+                            start: ocol.start.min(scol.start),
+                            end: ocol.end.max(scol.end),
+                        },
                     };
                 }
                 std::cmp::Ordering::Greater => {
@@ -219,14 +251,17 @@ impl SourceSpan {
     pub(crate) fn from_pos(file: &CachedFile, pos: usize) -> SourceSpan {
         let mut cur = 0;
         let mut ln = 1;
-        let mut col = 0..0;
+        let mut col = Range { start: 0, end: 0 };
 
         for line in file.data().lines_with_terminator() {
             let range = cur..cur + line.len();
 
             if range.contains(&pos) {
                 let start = u16::try_from(pos - range.start).unwrap();
-                col = start..start + 1;
+                col = Range {
+                    start,
+                    end: start + 1,
+                };
                 break;
             }
 
@@ -266,7 +301,7 @@ mod tests {
                 pos: 6,
                 range: SpanRange::SingleLine {
                     line: 1,
-                    col: 6..11
+                    col: Range { start: 6, end: 11 },
                 }
             }
             .value(),
