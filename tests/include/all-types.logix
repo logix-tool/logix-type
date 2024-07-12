@@ -89,4 +89,13 @@ Root {
   executable2: "/usr/bin/logix"
   dyn_array: [1, 1, 2, 2, 3, 3]
   fixed_array: [1, 2, 3]
+  arc_map: {
+    a: 16
+  }
+  rc_map: {
+    b: 54
+  }
+  box_map: {
+    c: 32
+  }
 }

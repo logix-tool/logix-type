@@ -1,4 +1,4 @@
-use std::{borrow::Cow, ffi::OsStr, fmt, path::Path};
+use std::{borrow::Cow, ffi::OsStr, fmt, path::Path, rc::Rc, sync::Arc};
 
 use logix_vfs::LogixVfs;
 use smol_str::SmolStr;
@@ -22,6 +22,51 @@ impl From<String> for ShortStr {
         Self {
             value: value.into(),
         }
+    }
+}
+
+impl From<Box<str>> for ShortStr {
+    fn from(value: Box<str>) -> Self {
+        Self {
+            value: value.into(),
+        }
+    }
+}
+
+impl From<ShortStr> for Box<str> {
+    fn from(value: ShortStr) -> Self {
+        // TODO: This is not optimal, is there a way to enable From in smol_str?
+        value.value.as_ref().into()
+    }
+}
+
+impl From<Arc<str>> for ShortStr {
+    fn from(value: Arc<str>) -> Self {
+        Self {
+            value: value.into(),
+        }
+    }
+}
+
+impl From<ShortStr> for Arc<str> {
+    fn from(value: ShortStr) -> Self {
+        value.value.into()
+    }
+}
+
+impl From<Rc<str>> for ShortStr {
+    fn from(value: Rc<str>) -> Self {
+        // TODO: This is not optimal, is there a way to enable From in smol_str?
+        Self {
+            value: value.as_ref().into(),
+        }
+    }
+}
+
+impl From<ShortStr> for Rc<str> {
+    fn from(value: ShortStr) -> Self {
+        // TODO: This is not optimal, is there a way to enable From in smol_str?
+        value.value.as_ref().into()
     }
 }
 

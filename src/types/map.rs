@@ -10,9 +10,15 @@ use crate::{
     LogixType,
 };
 
-pub type Map<V> = IndexMap<ShortStr, V>;
+pub type Map<V, K = ShortStr> = IndexMap<K, V>;
 
-impl<T: LogixType> LogixType for Map<T> {
+impl<T: LogixType, K> LogixType for Map<T, K>
+where
+    K: AsRef<str>,
+    K: From<ShortStr>,
+    K: std::hash::Hash,
+    K: Eq,
+{
     fn descriptor() -> &'static LogixTypeDescriptor {
         static RET: LogixTypeDescriptor = LogixTypeDescriptor {
             name: "string",
@@ -27,7 +33,7 @@ impl<T: LogixType> LogixType for Map<T> {
     }
 
     fn logix_parse<FS: LogixVfs>(p: &mut LogixParser<FS>) -> Result<Value<Self>> {
-        let mut map = Map::new();
+        let mut map = IndexMap::new();
 
         let start = p.req_token(
             "map",
@@ -39,10 +45,10 @@ impl<T: LogixType> LogixType for Map<T> {
         p.req_token("map", Token::Newline(false))?;
 
         while let Some((key, value)) = p.read_key_value("map", Brace::Curly)? {
-            if let (i, Some(_)) = map.insert_full(key.value, value.value) {
+            if let (i, Some(_)) = map.insert_full(K::from(key.value), value.value) {
                 p.warning(Warn::DuplicateMapEntry {
                     span: key.span,
-                    key: map.get_index(i).unwrap().0.clone(),
+                    key: map.get_index(i).unwrap().0.as_ref().into(),
                 })?;
             }
         }

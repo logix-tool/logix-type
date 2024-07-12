@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, rc::Rc, sync::Arc};
 
 use logix_type::{
     error::Result,
@@ -59,6 +59,9 @@ struct Root {
     executable2: ExecutablePath,
     dyn_array: Vec<u32>,
     fixed_array: [u32; 3],
+    arc_map: Map<u32, Arc<str>>,
+    rc_map: Map<u32, Rc<str>>,
+    box_map: Map<u32, Box<str>>,
 }
 
 #[derive(logix_type::LogixType, PartialEq, Debug)]
@@ -168,6 +171,9 @@ fn expected_root() -> Root {
         executable2: "/usr/bin/logix".try_into().unwrap(),
         dyn_array: vec![1, 1, 2, 2, 3, 3],
         fixed_array: [1, 2, 3],
+        arc_map: [(Arc::from("a"), 16)].into(),
+        rc_map: [(Rc::from("b"), 54)].into(),
+        box_map: [(Box::from("c"), 32)].into(),
     }
 }
 
@@ -229,6 +235,9 @@ fn load_and_compare(loader: &mut LogixLoader<impl LogixVfs>) -> Result<()> {
         executable2,
         dyn_array,
         fixed_array,
+        arc_map,
+        rc_map,
+        box_map,
     } = loader.load_file("all-types.logix")?;
     assert_eq!(type_i8, expected.type_i8);
     assert_eq!(type_u8, expected.type_u8);
@@ -290,6 +299,10 @@ fn load_and_compare(loader: &mut LogixLoader<impl LogixVfs>) -> Result<()> {
 
     assert_eq!(dyn_array, expected.dyn_array);
     assert_eq!(fixed_array, expected.fixed_array);
+
+    assert_eq!(arc_map, expected.arc_map);
+    assert_eq!(rc_map, expected.rc_map);
+    assert_eq!(box_map, expected.box_map);
 
     Ok(())
 }
